@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, X, Filter, CheckSquare, Square, ChevronDown, ChevronUp, Calendar } from "lucide-react";
+import { Search, X, Filter, CheckSquare, Square, ChevronDown, ChevronUp } from "lucide-react";
 import {
   Command,
   CommandEmpty,
@@ -29,16 +29,6 @@ interface SheetSelectorProps {
   isLoading: boolean;
 }
 
-const MONTHS = [
-  "January", "February", "March", "April", "May", "June", 
-  "July", "August", "September", "October", "November", "December"
-];
-
-const MONTH_ABBREVIATIONS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun", 
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-];
-
 const SheetSelector: React.FC<SheetSelectorProps> = ({ 
   sheetNames,
   selectedSheets,
@@ -49,25 +39,14 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPattern, setSelectedPattern] = useState<string | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
-  const [filterType, setFilterType] = useState<"pattern" | "month">("month");
 
   // Find patterns in sheet names (dates, common prefixes, etc.)
   const patterns = useMemo(() => {
     if (!sheetNames.length) return [];
     
-    const datePatterns = new Map<string, string[]>();
     const prefixMap = new Map<string, number>();
     
     sheetNames.forEach(name => {
-      const dateMatch = name.match(/\d{1,4}[-/\.]\d{1,2}([-/\.]\d{1,4})?/);
-      if (dateMatch) {
-        const datePattern = dateMatch[0];
-        if (!datePatterns.has(datePattern)) {
-          datePatterns.set(datePattern, []);
-        }
-        datePatterns.get(datePattern)!.push(name);
-      }
-      
       const prefixMatch = name.match(/^([a-zA-Z0-9]+)[\s_-]/);
       if (prefixMatch) {
         const prefix = prefixMatch[1];
@@ -75,70 +54,15 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
       }
     });
     
-    const commonPrefixes = Array.from(prefixMap.entries())
-      .filter(([_, count]) => count > 1)
-      .map(([prefix]) => prefix);
-    
-    const allPatterns = [
-      ...Array.from(datePatterns.keys()),
-      ...commonPrefixes
-    ];
-    
-    return allPatterns;
+    return Array.from(prefixMap.keys())
+      .filter((_, count) => count > 1);
   }, [sheetNames]);
 
-  // Find months mentioned in sheet names
-  const months = useMemo(() => {
-    if (!sheetNames.length) return [];
-    
-    const foundMonths = new Set<string>();
-    
-    sheetNames.forEach(name => {
-      const normalizedName = name.toLowerCase();
-      
-      MONTHS.forEach((month, index) => {
-        if (normalizedName.includes(month.toLowerCase()) || 
-            normalizedName.includes(MONTH_ABBREVIATIONS[index].toLowerCase()) ||
-            name.includes(month) ||
-            name.includes(MONTH_ABBREVIATIONS[index])) {
-          foundMonths.add(month);
-        }
-      });
-    });
-    
-    return Array.from(foundMonths);
-  }, [sheetNames]);
-
-  // Group sheets based on selected filter
+  // Group sheets based on alphabetical order or patterns
   const groupedSheets = useMemo(() => {
     const groups: Record<string, string[]> = {};
     
-    if (filterType === "month" && selectedPattern) {
-      const month = selectedPattern;
-      // Find the month index to get its abbreviation
-      const monthIndex = MONTHS.indexOf(month);
-      const abbreviation = monthIndex >= 0 ? MONTH_ABBREVIATIONS[monthIndex].toLowerCase() : "";
-      
-      const matchingSheets = sheetNames.filter(name => {
-        const normalizedName = name.toLowerCase();
-        return normalizedName.includes(month.toLowerCase()) || 
-               normalizedName.includes(abbreviation);
-      });
-      
-      if (matchingSheets.length) {
-        groups[`${month}`] = matchingSheets;
-      }
-      
-      const otherSheets = sheetNames.filter(name => {
-        const normalizedName = name.toLowerCase();
-        return !(normalizedName.includes(month.toLowerCase()) || 
-                normalizedName.includes(abbreviation));
-      });
-      
-      if (otherSheets.length) {
-        groups["Other Sheets"] = otherSheets;
-      }
-    } else if (filterType === "pattern" && selectedPattern) {
+    if (selectedPattern) {
       // Pattern-based filtering
       const matchingSheets = sheetNames.filter(name => 
         name.includes(selectedPattern)
@@ -156,7 +80,7 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
         groups["Other Sheets"] = otherSheets;
       }
     } else {
-      // Default alphabetical grouping when no filter is selected
+      // Default alphabetical grouping
       for (let i = 0; i < 26; i++) {
         const letter = String.fromCharCode(65 + i);
         const sheetsStartingWithLetter = sheetNames.filter(name => 
@@ -199,7 +123,7 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
     }
     
     return groups;
-  }, [sheetNames, searchTerm, selectedPattern, filterType]);
+  }, [sheetNames, searchTerm, selectedPattern]);
 
   const filterGroups = Object.keys(groupedSheets);
   
@@ -303,26 +227,6 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
     );
   };
 
-  const toggleFilterType = () => {
-    setFilterType(prev => prev === "pattern" ? "month" : "pattern");
-    setSelectedPattern(null);
-  };
-
-  // Safely handle month selection
-  const handleSelectMonth = (month: string) => {
-    try {
-      if (MONTHS.includes(month)) {
-        setSelectedPattern(month);
-      } else {
-        console.error("Invalid month:", month);
-        setSelectedPattern(null);
-      }
-    } catch (error) {
-      console.error("Error selecting month:", error);
-      setSelectedPattern(null);
-    }
-  };
-
   return (
     <Card className="mb-6">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
@@ -376,70 +280,33 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
             </div>
             
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={toggleFilterType}
-                className="flex items-center gap-1"
-              >
-                {filterType === "month" ? (
-                  <>
-                    <Calendar className="h-4 w-4" />
-                    <span className="hidden sm:inline">Month Filter</span>
-                  </>
-                ) : (
-                  <>
-                    <Filter className="h-4 w-4" />
-                    <span className="hidden sm:inline">Pattern Filter</span>
-                  </>
-                )}
-              </Button>
-              
               <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="outline" size="sm" className="flex items-center gap-1.5">
-                    {filterType === "month" ? <Calendar className="h-4 w-4" /> : <Filter className="h-4 w-4" />}
-                    <span className="hidden sm:inline">{filterType === "month" ? "Month" : "Filter"}</span>
+                    <Filter className="h-4 w-4" />
+                    <span className="hidden sm:inline">Filter</span>
                     {selectedPattern && <Badge variant="secondary" className="ml-1">{selectedPattern}</Badge>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-64 p-0" align="end">
                   <Command>
-                    <CommandInput placeholder={filterType === "month" ? "Search months..." : "Search patterns..."} />
-                    <CommandEmpty>No {filterType === "month" ? "months" : "patterns"} found</CommandEmpty>
+                    <CommandInput placeholder="Search patterns..." />
+                    <CommandEmpty>No patterns found</CommandEmpty>
                     <CommandGroup>
-                      {filterType === "month" ? (
-                        months.length > 0 ? (
-                          months.map((month) => (
-                            <CommandItem
-                              key={month}
-                              onSelect={() => handleSelectMonth(month)}
-                              className="cursor-pointer"
-                            >
-                              {month}
-                            </CommandItem>
-                          ))
-                        ) : (
-                          <div className="px-2 py-3 text-sm text-muted-foreground">
-                            No month patterns detected in sheet names
-                          </div>
-                        )
+                      {patterns.length > 0 ? (
+                        patterns.map((pattern) => (
+                          <CommandItem
+                            key={pattern}
+                            onSelect={() => setSelectedPattern(pattern)}
+                            className="cursor-pointer"
+                          >
+                            {pattern}
+                          </CommandItem>
+                        ))
                       ) : (
-                        patterns.length > 0 ? (
-                          patterns.map((pattern) => (
-                            <CommandItem
-                              key={pattern}
-                              onSelect={() => setSelectedPattern(pattern)}
-                              className="cursor-pointer"
-                            >
-                              {pattern}
-                            </CommandItem>
-                          ))
-                        ) : (
-                          <div className="px-2 py-3 text-sm text-muted-foreground">
-                            No patterns detected in sheet names
-                          </div>
-                        )
+                        <div className="px-2 py-3 text-sm text-muted-foreground">
+                          No patterns detected in sheet names
+                        </div>
                       )}
                     </CommandGroup>
                   </Command>
