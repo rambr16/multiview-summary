@@ -76,6 +76,9 @@ const SummaryResults: React.FC<SummaryResultsProps> = ({
     );
   }
 
+  // Current view data based on the view type
+  const currentData = viewType === "summary" ? summaryViewData : detailedViewData;
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -101,10 +104,9 @@ const SummaryResults: React.FC<SummaryResultsProps> = ({
               data={summaryViewData} 
               detailedData={detailedViewData}
               viewType={viewType}
-              setViewType={setViewType}
             />
             <div className="mt-4 text-sm text-right text-muted-foreground">
-              {`Showing ${(viewType === "summary" ? summaryViewData.length : detailedViewData.length)} ${viewType === "summary" ? "summarized" : ""} ${(viewType === "summary" ? summaryViewData.length : detailedViewData.length) === 1 ? "record" : "records"}`}
+              {`Showing ${currentData.length} ${currentData.length === 1 ? "record" : "records"}`}
             </div>
           </div>
         ) : (
