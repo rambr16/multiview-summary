@@ -1,4 +1,3 @@
-
 import * as XLSX from 'xlsx';
 import { DataRow } from './fileTypes';
 
@@ -16,6 +15,16 @@ export const extractSheetData = (workbook: XLSX.WorkBook, selectedSheets: string
     const sheetData = XLSX.utils.sheet_to_json<DataRow>(worksheet, { defval: '' });
     
     const validRows = sheetData.filter(row => {
+      // Skip rows where the client_name or any column containing "client" ends with " - Summary"
+      const clientField = Object.keys(row).find(key => key.toLowerCase().includes('client'));
+      if (clientField && typeof row[clientField] === 'string') {
+        const clientValue = row[clientField] as string;
+        if (clientValue.endsWith(' - Summary')) {
+          return false;
+        }
+      }
+      
+      // Keep rows that have at least one non-empty value
       return Object.values(row).some(val => val !== '');
     });
     
