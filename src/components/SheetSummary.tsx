@@ -13,16 +13,18 @@ import { Card, CardContent } from "@/components/ui/card";
 
 interface SheetSummaryProps {
   data: any[];
-  detailedData?: any[];
   viewType: "detailed" | "summary";
 }
 
 const SheetSummary: React.FC<SheetSummaryProps> = ({ 
   data, 
-  detailedData = [], 
-  viewType
+  viewType 
 }) => {
-  if (!data.length && !detailedData.length) return null;
+  if (!data || data.length === 0) return (
+    <div className="py-8 text-center text-gray-500">
+      No data available. Please check your selected sheets and try again.
+    </div>
+  );
   
   // Columns to exclude from display
   const columnsToExclude = [
@@ -36,29 +38,26 @@ const SheetSummary: React.FC<SheetSummaryProps> = ({
     "ln_connection_req_skipped_sent_msg_count"
   ];
   
-  // Get columns to display based on view type
-  const currentData = viewType === "summary" ? data : detailedData;
-  
   // Get columns to display
-  const displayColumns = currentData.length > 0 
-    ? Object.keys(currentData[0]).filter(col => !columnsToExclude.includes(col.toLowerCase()))
-    : [];
+  const displayColumns = Object.keys(data[0]).filter(col => 
+    !columnsToExclude.includes(col.toLowerCase())
+  );
 
   // Calculate summary totals for numeric columns
   const summaryTotals = useMemo(() => {
     const totals: Record<string, number> = {};
     
-    if (currentData.length === 0) return totals;
+    if (data.length === 0) return totals;
     
     displayColumns.forEach(col => {
       // Check if this column contains numeric values
-      const isNumeric = currentData.some(row => 
+      const isNumeric = data.some(row => 
         typeof row[col] === 'number' || 
         (typeof row[col] === 'string' && !isNaN(Number(row[col])))
       );
       
       if (isNumeric) {
-        totals[col] = currentData.reduce((sum, row) => {
+        totals[col] = data.reduce((sum, row) => {
           const value = typeof row[col] === 'number' ? row[col] : Number(row[col]) || 0;
           return sum + value;
         }, 0);
@@ -66,11 +65,20 @@ const SheetSummary: React.FC<SheetSummaryProps> = ({
     });
     
     return totals;
-  }, [currentData, displayColumns]);
+  }, [data, displayColumns]);
   
   // Determine which columns are numeric for summary display
   const numericColumns = Object.keys(summaryTotals);
   const hasNumericColumns = numericColumns.length > 0;
+
+  // Ensure we have valid data to display
+  if (!displayColumns.length) {
+    return (
+      <div className="py-8 text-center text-gray-500">
+        No columns to display. The data may be invalid.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -102,7 +110,7 @@ const SheetSummary: React.FC<SheetSummaryProps> = ({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {currentData.map((row, i) => (
+            {data.map((row, i) => (
               <TableRow key={i}>
                 {displayColumns.map((column) => (
                   <TableCell key={`${i}-${column}`} className="whitespace-nowrap">

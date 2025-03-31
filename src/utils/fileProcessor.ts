@@ -21,14 +21,27 @@ export const extractSheetData = (workbook: XLSX.WorkBook, selectedSheets: string
   
   for (const sheetName of selectedSheets) {
     const worksheet = workbook.Sheets[sheetName];
+    
+    if (!worksheet) {
+      console.warn(`Sheet "${sheetName}" not found in workbook`);
+      continue;
+    }
+    
     const sheetData = XLSX.utils.sheet_to_json<DataRow>(worksheet, { defval: '' });
     
     const validRows = sheetData.filter(row => {
       return Object.values(row).some(val => val !== '');
     });
     
-    allData.push(...validRows);
+    if (validRows.length > 0) {
+      console.log(`Processed ${validRows.length} rows from sheet "${sheetName}"`);
+      allData.push(...validRows);
+    } else {
+      console.warn(`No valid data found in sheet "${sheetName}"`);
+    }
   }
+  
+  console.log(`Total rows processed from all sheets: ${allData.length}`);
   
   const processedData = allData.map(row => {
     const processedRow: DataRow = {};
