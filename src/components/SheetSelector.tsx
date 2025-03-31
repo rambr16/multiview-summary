@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -215,7 +216,7 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
     if (filterGroups.length > 0 && expandedGroups.length === 0) {
       setExpandedGroups([filterGroups[0]]);
     }
-  }, [filterGroups]);
+  }, [filterGroups, expandedGroups]);
   
   const totalFilteredSheets = useMemo(() => {
     return Object.values(groupedSheets).reduce(
@@ -310,6 +311,17 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
     setSelectedPattern(null);
   };
 
+  // Handle month selection safely
+  const handleSelectMonth = (month: string) => {
+    try {
+      setSelectedPattern(month);
+    } catch (error) {
+      console.error("Error selecting month:", error);
+      // Reset to avoid blank page
+      setSelectedPattern(null);
+    }
+  };
+
   return (
     <Card className="mb-6">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
@@ -400,7 +412,7 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
                           months.map((month) => (
                             <CommandItem
                               key={month}
-                              onSelect={() => setSelectedPattern(month)}
+                              onSelect={() => handleSelectMonth(month)}
                               className="cursor-pointer"
                             >
                               {month}
