@@ -34,7 +34,10 @@ const ClientFilter: React.FC<ClientFilterProps> = ({
     
     if (!clientCol) return [];
     
-    const uniqueClients = [...new Set(data.map(row => row[clientCol]))].filter(Boolean);
+    const uniqueClients = [...new Set(data.map(row => row[clientCol]))].filter(Boolean)
+      // Exclude names with "-summary"
+      .filter(client => !String(client).toLowerCase().includes('-summary'));
+    
     return uniqueClients.sort();
   }, [data]);
 
