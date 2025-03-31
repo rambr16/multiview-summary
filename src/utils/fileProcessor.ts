@@ -35,11 +35,23 @@ export const extractSheetData = (workbook: XLSX.WorkBook, selectedSheets: string
     
     const numericFields = [
       'sent_count', 'unique_sent_count', 'positive_reply_count', 
-      'reply_count', 'bounce_count'
+      'reply_count', 'bounce_count', 'open_count', 'unique_open_count',
+      'click_count'
     ];
     
     Object.keys(row).forEach(key => {
-      if (numericFields.includes(key) && typeof row[key] === 'string') {
+      // Skip columns we want to exclude
+      const lowerKey = key.toLowerCase();
+      if (lowerKey === 'record_count' || 
+          lowerKey === 'id' || 
+          lowerKey === 'user_id' || 
+          lowerKey === 'ln_connection_req_pending_count' ||
+          lowerKey === 'ln_connection_req_accepted_count' ||
+          lowerKey === 'ln_connection_req_skipped_sent_msg_count') {
+        return;
+      }
+      
+      if (numericFields.includes(lowerKey) && typeof row[key] === 'string') {
         const numValue = parseFloat(row[key] as string);
         processedRow[key] = isNaN(numValue) ? 0 : numValue;
       } else {
@@ -58,7 +70,7 @@ export const generateSummaryView = (filteredData: DataRow[]): DataRow[] => {
 
   const columns = Object.keys(filteredData[0]);
   const numericColumns = columns.filter(col => 
-    !['total_count', 'drafted_count'].includes(col) &&
+    !['total_count', 'drafted_count', 'record_count', 'id', 'user_id'].includes(col.toLowerCase()) &&
     (typeof filteredData[0][col] === 'number' || 
      !isNaN(Number(filteredData[0][col])))
   );
@@ -66,7 +78,7 @@ export const generateSummaryView = (filteredData: DataRow[]): DataRow[] => {
   const clientField = columns.find(col => col.toLowerCase().includes('client')) || null;
   
   if (!clientField) {
-    const summary: DataRow = { total_records: filteredData.length };
+    const summary: DataRow = {};
     numericColumns.forEach(col => {
       const sum = filteredData.reduce((acc, row) => {
         const val = typeof row[col] === 'number' ? row[col] : Number(row[col]) || 0;
@@ -76,25 +88,26 @@ export const generateSummaryView = (filteredData: DataRow[]): DataRow[] => {
     });
     return [summary];
   } else {
+    // Group by client
     const clientGroups: { [key: string]: DataRow } = {};
     
     filteredData.forEach(row => {
       const client = String(row[clientField] || 'Unknown');
       if (!clientGroups[client]) {
         clientGroups[client] = { 
-          [clientField]: client,
-          record_count: 0 
+          [clientField]: client
         };
         
         numericColumns.forEach(col => {
-          clientGroups[client][col] = 0;
+          if (!col.toLowerCase().includes('client')) {
+            clientGroups[client][col] = 0;
+          }
         });
       }
       
-      clientGroups[client].record_count = (clientGroups[client].record_count as number) + 1;
-      
+      // Sum numeric columns
       numericColumns.forEach(col => {
-        if (col === 'record_count') return;
+        if (col.toLowerCase().includes('client')) return;
         const val = typeof row[col] === 'number' ? row[col] : Number(row[col]) || 0;
         clientGroups[client][col] = (clientGroups[client][col] as number) + (val as number);
       });

@@ -1,6 +1,5 @@
 
 import React, { useState, useMemo } from "react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -9,15 +8,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Filter, Search, X } from "lucide-react";
+import { X } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
 
 interface ClientFilterProps {
   data: any[];
   onFilter: (client: string | null) => void;
-  viewType: "detailed" | "summary";
-  onViewTypeChange: (type: "detailed" | "summary") => void;
+  selectedClient: string | null;
   onWeeklyTargetChange: (target: number) => void;
   weeklyTarget: number;
 }
@@ -25,13 +23,11 @@ interface ClientFilterProps {
 const ClientFilter: React.FC<ClientFilterProps> = ({
   data,
   onFilter,
-  viewType,
-  onViewTypeChange,
+  selectedClient,
   onWeeklyTargetChange,
   weeklyTarget
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedClient, setSelectedClient] = useState<string | null>(null);
 
   const clientNames = useMemo(() => {
     if (!data.length) return [];
@@ -56,7 +52,6 @@ const ClientFilter: React.FC<ClientFilterProps> = ({
 
   const handleClientSelect = (value: string) => {
     const client = value === "all" ? null : value;
-    setSelectedClient(client);
     onFilter(client);
   };
 
@@ -114,23 +109,6 @@ const ClientFilter: React.FC<ClientFilterProps> = ({
             )}
           </SelectContent>
         </Select>
-        
-        <div className="flex gap-2">
-          <Button
-            variant={viewType === "detailed" ? "default" : "outline"}
-            onClick={() => onViewTypeChange("detailed")}
-            className="h-10"
-          >
-            Detailed
-          </Button>
-          <Button
-            variant={viewType === "summary" ? "default" : "outline"}
-            onClick={() => onViewTypeChange("summary")}
-            className="h-10"
-          >
-            Summary
-          </Button>
-        </div>
       </div>
       
       <div className="flex items-center gap-3">

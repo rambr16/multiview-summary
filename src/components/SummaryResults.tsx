@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileDown } from "lucide-react";
@@ -27,7 +27,11 @@ const SummaryResults: React.FC<SummaryResultsProps> = ({
   weeklyTarget,
   onWeeklyTargetChange
 }) => {
+  const [selectedClient, setSelectedClient] = useState<string | null>(null);
+
   const handleClientFilter = (client: string | null) => {
+    setSelectedClient(client);
+    
     if (!client) {
       setFilteredData(summaryData);
       return;
@@ -47,12 +51,21 @@ const SummaryResults: React.FC<SummaryResultsProps> = ({
     setFilteredData(filtered);
   };
 
+  // Generate appropriate data for the current view
   const summaryViewData = viewType === "summary" 
     ? generateSummaryView(filteredData)
-    : filteredData;
+    : [];
+
+  const detailedViewData = viewType === "detailed" 
+    ? filteredData
+    : [];
 
   const handleDownloadCsv = () => {
-    downloadCsv(summaryViewData);
+    if (viewType === "summary") {
+      downloadCsv(summaryViewData);
+    } else {
+      downloadCsv(filteredData);
+    }
   };
 
   if (!summaryData.length) {
@@ -80,8 +93,7 @@ const SummaryResults: React.FC<SummaryResultsProps> = ({
         <ClientFilter 
           data={summaryData}
           onFilter={handleClientFilter}
-          viewType={viewType}
-          onViewTypeChange={setViewType}
+          selectedClient={selectedClient}
           weeklyTarget={weeklyTarget}
           onWeeklyTargetChange={onWeeklyTargetChange}
         />
@@ -90,10 +102,13 @@ const SummaryResults: React.FC<SummaryResultsProps> = ({
           <div className="mt-6">
             <SheetSummary 
               data={summaryViewData} 
+              detailedData={detailedViewData}
               weeklyTarget={weeklyTarget}
+              viewType={viewType}
+              setViewType={setViewType}
             />
             <div className="mt-4 text-sm text-right text-muted-foreground">
-              {`Showing ${summaryViewData.length} ${viewType === "summary" ? "summarized" : ""} ${summaryViewData.length === 1 ? "record" : "records"}`}
+              {`Showing ${(viewType === "summary" ? summaryViewData.length : detailedViewData.length)} ${viewType === "summary" ? "summarized" : ""} ${(viewType === "summary" ? summaryViewData.length : detailedViewData.length) === 1 ? "record" : "records"}`}
             </div>
           </div>
         ) : (
