@@ -1,27 +1,23 @@
 
 import React from "react";
-import { AlertCircle } from "lucide-react";
+import { InfoIcon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const AppsScriptInfo = () => {
   return (
     <Alert className="mb-6">
-      <AlertCircle className="h-4 w-4" />
-      <AlertTitle>About This App</AlertTitle>
+      <InfoIcon className="h-4 w-4" />
+      <AlertTitle>Workbook Analyzer</AlertTitle>
       <AlertDescription>
         <p className="mt-2">
-          This is a demo of a Workbook Analyzer that allows you to analyze and summarize data from CSV and Excel files.
-          In a real implementation, this would:
+          Upload your CSV or Excel files to analyze and summarize the data. This tool helps you:
         </p>
         <ul className="list-disc pl-6 mt-2 space-y-1 text-sm">
-          <li>Parse and process uploaded CSV and Excel files</li>
-          <li>Extract individual sheets or sections from the workbook</li>
-          <li>Process and aggregate data across multiple sheets</li>
-          <li>Generate accurate summaries based on your selection</li>
+          <li>Process CSV and Excel files including multiple sheets</li>
+          <li>Select specific sheets or sections to analyze</li>
+          <li>Generate comprehensive data summaries</li>
+          <li>Export results for further use</li>
         </ul>
-        <p className="mt-2 text-sm font-medium">
-          For this demo, we're simulating the file processing with sample data.
-        </p>
       </AlertDescription>
     </Alert>
   );

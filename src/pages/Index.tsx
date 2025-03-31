@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -14,13 +14,18 @@ import { useToast } from "@/hooks/use-toast";
 import { FileDown, Upload } from "lucide-react";
 import * as XLSX from 'xlsx';
 
+interface DataRow {
+  [key: string]: string | number;
+}
+
 const Index = () => {
   const [sheetNames, setSheetNames] = useState<string[]>([]);
   const [selectedSheets, setSelectedSheets] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
-  const [summaryData, setSummaryData] = useState<any[]>([]);
+  const [summaryData, setSummaryData] = useState<DataRow[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
   const { toast } = useToast();
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -37,32 +42,25 @@ const Index = () => {
     try {
       setIsProcessingFile(true);
       setError(null);
-      
-      // For demo purposes, we'll simulate processing the file
-      // In a real app, we'd use the xlsx library to parse the file
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      let mockSheetNames: string[] = [];
-      
-      if (fileExt === 'csv') {
-        // For CSV, we'll mock a single sheet
-        mockSheetNames = ["CSV Data"];
-      } else {
-        // For Excel, we'll mock multiple sheets
-        mockSheetNames = ["Sales Data", "Marketing", "HR Records", "Finance", "Customer Feedback"];
-      }
-      
-      setSheetNames(mockSheetNames);
-      setSelectedSheets([]);
       setSummaryData([]);
       
+      const data = await file.arrayBuffer();
+      const wb = XLSX.read(data);
+      setWorkbook(wb);
+      
+      // Get all sheet names from the workbook
+      const sheets = wb.SheetNames;
+      
+      setSheetNames(sheets);
+      setSelectedSheets([]);
+      
       toast({
-        title: `${fileExt === 'csv' ? 'CSV' : 'Excel'} file loaded`,
-        description: `Found ${mockSheetNames.length} ${mockSheetNames.length === 1 ? 'sheet' : 'sheets'} in the workbook`,
+        title: "File loaded successfully",
+        description: `Found ${sheets.length} ${sheets.length === 1 ? 'sheet' : 'sheets'} in the workbook`,
       });
     } catch (err) {
-      setError(`Failed to process the ${fileExt === 'csv' ? 'CSV' : 'Excel'} file. Please check the file format.`);
-      console.error(err);
+      console.error('Error processing file:', err);
+      setError(`Failed to process the file. Please check the file format.`);
     } finally {
       setIsProcessingFile(false);
     }
@@ -90,59 +88,64 @@ const Index = () => {
       return;
     }
 
+    if (!workbook) {
+      setError("No file has been loaded");
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
       
-      // Simulate processing the data
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const allData: DataRow[] = [];
       
-      // Mock data - in real app this would be calculated from the file
-      const mockSummaryData = [
-        {
-          client_name: "Acme Inc",
-          created_at: "2023-01-15",
-          status: "Active",
-          name: "Q1 Campaign",
-          sent_count: 1250,
-          unique_sent_count: 1200,
-          positive_reply_count: 85,
-          reply_count: 120,
-          bounce_count: 30
-        },
-        {
-          client_name: "TechCorp",
-          created_at: "2023-02-20",
-          status: "Completed",
-          name: "Product Launch",
-          sent_count: 2500,
-          unique_sent_count: 2450,
-          positive_reply_count: 210,
-          reply_count: 350,
-          bounce_count: 45
-        },
-        {
-          client_name: "Global Services",
-          created_at: "2023-03-10",
-          status: "Active",
-          name: "Newsletter",
-          sent_count: 5000,
-          unique_sent_count: 4850,
-          positive_reply_count: 420,
-          reply_count: 580,
-          bounce_count: 75
-        }
-      ];
+      // Process each selected sheet
+      for (const sheetName of selectedSheets) {
+        const worksheet = workbook.Sheets[sheetName];
+        
+        // Convert the worksheet to JSON
+        const sheetData = XLSX.utils.sheet_to_json<DataRow>(worksheet, { defval: '' });
+        
+        // Filter out empty rows and add to the collection
+        const validRows = sheetData.filter(row => {
+          // Check if any key has a non-empty value
+          return Object.values(row).some(val => val !== '');
+        });
+        
+        allData.push(...validRows);
+      }
       
-      setSummaryData(mockSummaryData);
+      // Process the data to ensure proper types
+      const processedData = allData.map(row => {
+        const processedRow: DataRow = {};
+        
+        // Convert numeric strings to numbers for specific fields
+        const numericFields = [
+          'sent_count', 'unique_sent_count', 'positive_reply_count', 
+          'reply_count', 'bounce_count'
+        ];
+        
+        Object.keys(row).forEach(key => {
+          if (numericFields.includes(key) && typeof row[key] === 'string') {
+            const numValue = parseFloat(row[key] as string);
+            processedRow[key] = isNaN(numValue) ? 0 : numValue;
+          } else {
+            processedRow[key] = row[key];
+          }
+        });
+        
+        return processedRow;
+      });
+      
+      setSummaryData(processedData);
       
       toast({
         title: "Summary generated",
         description: `Successfully analyzed data from ${selectedSheets.length} sheets`,
       });
     } catch (err) {
-      setError("Failed to generate summary");
-      console.error(err);
+      console.error('Error generating summary:', err);
+      setError("Failed to generate summary. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -151,31 +154,25 @@ const Index = () => {
   const downloadCsv = () => {
     if (summaryData.length === 0) return;
     
-    // Convert JSON to CSV
-    const headers = Object.keys(summaryData[0]).join(',');
-    const rows = summaryData.map(row => 
-      Object.values(row).map(value => 
-        typeof value === 'string' && value.includes(',') 
-          ? `"${value}"`
-          : value
-      ).join(',')
-    );
-    const csv = [headers, ...rows].join('\n');
-    
-    // Create download link
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'sheet_summary.csv';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    toast({
-      title: "Download started",
-      description: "Your CSV file is being downloaded",
-    });
+    try {
+      // Create a new workbook for export
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(summaryData);
+      
+      // Add the worksheet to the workbook
+      XLSX.utils.book_append_sheet(wb, ws, "Summary");
+      
+      // Generate and download the file
+      XLSX.writeFile(wb, "workbook_summary.csv");
+      
+      toast({
+        title: "Download started",
+        description: "Your CSV file is being downloaded",
+      });
+    } catch (err) {
+      console.error('Error downloading CSV:', err);
+      setError("Failed to download CSV file. Please try again.");
+    }
   };
 
   return (
@@ -212,7 +209,7 @@ const Index = () => {
               </label>
             </div>
           </div>
-          {isProcessingFile && <div className="mt-4"><LoadingSpinner /></div>}
+          {isProcessingFile && <div className="mt-4"><LoadingSpinner message="Reading file contents..." /></div>}
           {error && (
             <Alert variant="destructive" className="mt-4">
               <AlertDescription>{error}</AlertDescription>
@@ -261,7 +258,7 @@ const Index = () => {
       )}
       
       {isLoading ? (
-        <LoadingSpinner />
+        <LoadingSpinner message="Analyzing sheet data..." />
       ) : summaryData.length > 0 ? (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
