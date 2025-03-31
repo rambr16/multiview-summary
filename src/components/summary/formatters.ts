@@ -37,8 +37,13 @@ export const formatMetric = (key: string, value: any): string => {
 
 // Function to determine highlight color based on metric values
 export const getMetricHighlightColor = (key: string, value: any): string => {
-  if (value === null || value === undefined || value === 'no positive reply') {
+  if (value === null || value === undefined) {
     return '';
+  }
+  
+  // Special case for "no positive reply"
+  if (value === 'no positive reply') {
+    return 'text-red-600';
   }
   
   const numValue = typeof value === 'number' ? value : parseFloat(String(value));
@@ -71,8 +76,13 @@ export const getMetricHighlightColor = (key: string, value: any): string => {
 
 // Function to determine highlight background color for cards
 export const getCardHighlightColor = (key: string, value: any): string => {
-  if (value === null || value === undefined || value === 'no positive reply') {
+  if (value === null || value === undefined) {
     return '';
+  }
+  
+  // Special case for "no positive reply"
+  if (value === 'no positive reply') {
+    return 'bg-red-50';
   }
   
   const numValue = typeof value === 'number' ? value : parseFloat(String(value));

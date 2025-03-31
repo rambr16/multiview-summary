@@ -50,7 +50,7 @@ const DataTable: React.FC<DataTableProps> = ({
                 
                 return (
                   <TableCell key={`${i}-${column}`} className={`whitespace-nowrap ${highlightColor}`}>
-                    {['prr_vs_rr', 'rr', 'bounce_rate'].includes(column) 
+                    {['prr_vs_rr', 'rr', 'bounce_rate', 'unique_leads_per_positive'].includes(column) 
                       ? formatMetric(column, row[column])
                       : formatCellValue(row[column])}
                   </TableCell>
