@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import ClientFilter from "@/components/ClientFilter";
@@ -6,6 +5,7 @@ import EmptyState from "@/components/EmptyState";
 import { DataRow } from "@/utils/fileProcessor";
 import SheetSummary from "@/components/SheetSummary";
 import DownloadButton from "@/components/DownloadButton";
+import ResultsDisplay from "@/components/ResultsDisplay";
 
 interface SummaryResultsProps {
   summaryData: DataRow[];
