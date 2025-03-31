@@ -1,17 +1,30 @@
-
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, X } from "lucide-react";
+import { Search, X, Filter, CheckSquare, Square, ChevronDown, ChevronUp } from "lucide-react";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 
 interface SheetSelectorProps {
   sheetNames: string[];
@@ -29,16 +42,135 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
   isLoading
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedPattern, setSelectedPattern] = useState<string | null>(null);
+  const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
 
-  const filteredSheets = useMemo(() => {
-    if (!searchTerm) return sheetNames;
-    return sheetNames.filter(name => 
-      name.toLowerCase().includes(searchTerm.toLowerCase())
+  const patterns = useMemo(() => {
+    if (!sheetNames.length) return [];
+    
+    const datePatterns = new Map<string, string[]>();
+    const prefixMap = new Map<string, number>();
+    
+    sheetNames.forEach(name => {
+      const dateMatch = name.match(/\d{1,4}[-/\.]\d{1,2}([-/\.]\d{1,4})?/);
+      if (dateMatch) {
+        const datePattern = dateMatch[0];
+        if (!datePatterns.has(datePattern)) {
+          datePatterns.set(datePattern, []);
+        }
+        datePatterns.get(datePattern)!.push(name);
+      }
+      
+      const prefixMatch = name.match(/^([a-zA-Z0-9]+)[\s_-]/);
+      if (prefixMatch) {
+        const prefix = prefixMatch[1];
+        prefixMap.set(prefix, (prefixMap.get(prefix) || 0) + 1);
+      }
+    });
+    
+    const commonPrefixes = Array.from(prefixMap.entries())
+      .filter(([_, count]) => count > 1)
+      .map(([prefix]) => prefix);
+    
+    const allPatterns = [
+      ...Array.from(datePatterns.keys()),
+      ...commonPrefixes
+    ];
+    
+    return allPatterns;
+  }, [sheetNames]);
+
+  const groupedSheets = useMemo(() => {
+    const groups: Record<string, string[]> = {};
+    
+    if (selectedPattern) {
+      const matchingSheets = sheetNames.filter(name => 
+        name.includes(selectedPattern)
+      );
+      
+      if (matchingSheets.length) {
+        groups[`Contains "${selectedPattern}"`] = matchingSheets;
+      }
+      
+      const otherSheets = sheetNames.filter(name => 
+        !name.includes(selectedPattern)
+      );
+      
+      if (otherSheets.length) {
+        groups["Other Sheets"] = otherSheets;
+      }
+    } else {
+      for (let i = 0; i < 26; i++) {
+        const letter = String.fromCharCode(65 + i);
+        const sheetsStartingWithLetter = sheetNames.filter(name => 
+          name.toUpperCase().startsWith(letter)
+        );
+        
+        if (sheetsStartingWithLetter.length > 0) {
+          groups[letter] = sheetsStartingWithLetter;
+        }
+      }
+      
+      const sheetsStartingWithNumbers = sheetNames.filter(name => 
+        /^\d/.test(name)
+      );
+      
+      if (sheetsStartingWithNumbers.length > 0) {
+        groups["0-9"] = sheetsStartingWithNumbers;
+      }
+      
+      const sheetsStartingWithOther = sheetNames.filter(name => 
+        !/^[A-Za-z0-9]/.test(name)
+      );
+      
+      if (sheetsStartingWithOther.length > 0) {
+        groups["Other"] = sheetsStartingWithOther;
+      }
+    }
+    
+    if (searchTerm) {
+      Object.keys(groups).forEach(groupName => {
+        groups[groupName] = groups[groupName].filter(sheet => 
+          sheet.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+        
+        if (groups[groupName].length === 0) {
+          delete groups[groupName];
+        }
+      });
+    }
+    
+    return groups;
+  }, [sheetNames, searchTerm, selectedPattern]);
+
+  const filterGroups = Object.keys(groupedSheets);
+  
+  useEffect(() => {
+    if (filterGroups.length > 0 && expandedGroups.length === 0) {
+      setExpandedGroups([filterGroups[0]]);
+    }
+  }, [filterGroups]);
+  
+  const totalFilteredSheets = useMemo(() => {
+    return Object.values(groupedSheets).reduce(
+      (total, sheets) => total + sheets.length, 
+      0
     );
-  }, [sheetNames, searchTerm]);
+  }, [groupedSheets]);
+
+  const totalSelectedFilteredSheets = useMemo(() => {
+    let count = 0;
+    Object.values(groupedSheets).forEach(sheets => {
+      sheets.forEach(sheet => {
+        if (selectedSheets.includes(sheet)) {
+          count++;
+        }
+      });
+    });
+    return count;
+  }, [groupedSheets, selectedSheets]);
 
   const handleSheetSelection = (sheetName: string) => {
-    // Fix: Pass the new array directly instead of a function
     const newSelection = selectedSheets.includes(sheetName)
       ? selectedSheets.filter(name => name !== sheetName)
       : [...selectedSheets, sheetName];
@@ -47,10 +179,43 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
   };
 
   const handleSelectAll = () => {
-    if (selectedSheets.length === filteredSheets.length && filteredSheets.length > 0) {
-      onSheetsChange([]);
+    if (totalSelectedFilteredSheets === totalFilteredSheets && totalFilteredSheets > 0) {
+      const sheetsToRemove = new Set();
+      Object.values(groupedSheets).forEach(sheets => {
+        sheets.forEach(sheet => sheetsToRemove.add(sheet));
+      });
+      
+      const newSelection = selectedSheets.filter(sheet => !sheetsToRemove.has(sheet));
+      onSheetsChange(newSelection);
     } else {
-      onSheetsChange([...filteredSheets]);
+      const sheetsToAdd = new Set<string>();
+      Object.values(groupedSheets).forEach(sheets => {
+        sheets.forEach(sheet => sheetsToAdd.add(sheet));
+      });
+      
+      const existingSelection = new Set(selectedSheets);
+      const combinedSelection = [...existingSelection, ...sheetsToAdd];
+      
+      onSheetsChange([...new Set(combinedSelection)]);
+    }
+  };
+
+  const handleGroupSelectAll = (groupName: string) => {
+    const groupSheets = groupedSheets[groupName] || [];
+    
+    const allSelected = groupSheets.every(sheet => selectedSheets.includes(sheet));
+    
+    if (allSelected) {
+      const newSelection = selectedSheets.filter(sheet => !groupSheets.includes(sheet));
+      onSheetsChange(newSelection);
+    } else {
+      const newSelection = [...selectedSheets];
+      groupSheets.forEach(sheet => {
+        if (!newSelection.includes(sheet)) {
+          newSelection.push(sheet);
+        }
+      });
+      onSheetsChange(newSelection);
     }
   };
 
@@ -62,92 +227,166 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
     setSearchTerm("");
   };
 
+  const clearPatternFilter = () => {
+    setSelectedPattern(null);
+  };
+
+  const toggleGroup = (groupName: string) => {
+    setExpandedGroups(prev => 
+      prev.includes(groupName) 
+        ? prev.filter(name => name !== groupName) 
+        : [...prev, groupName]
+    );
+  };
+
   return (
     <Card className="mb-6">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Step 2: Select Sheets</CardTitle>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={handleSelectAll}
-        >
-          {selectedSheets.length === filteredSheets.length && filteredSheets.length > 0 ? "Deselect All" : "Select All"}
-        </Button>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+        <CardTitle className="text-xl">Step 2: Select Sheets</CardTitle>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="flex items-center gap-1">
+            {totalSelectedFilteredSheets} / {totalFilteredSheets} selected
+          </Badge>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleSelectAll}
+            className="flex items-center gap-1"
+          >
+            {totalSelectedFilteredSheets === totalFilteredSheets && totalFilteredSheets > 0 ? (
+              <>
+                <Square className="h-4 w-4" />
+                <span className="hidden sm:inline">Deselect All</span>
+                <span className="inline sm:hidden">Deselect</span>
+              </>
+            ) : (
+              <>
+                <CheckSquare className="h-4 w-4" />
+                <span className="hidden sm:inline">Select All</span>
+                <span className="inline sm:hidden">Select</span>
+              </>
+            )}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
-        <div className="mb-4 relative">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-            <Input
-              placeholder="Search sheets..."
-              value={searchTerm}
-              onChange={handleSearchChange}
-              className="pl-8 pr-8"
-            />
-            {searchTerm && (
-              <button
-                onClick={clearSearch}
-                className="absolute right-2.5 top-2.5"
-                aria-label="Clear search"
-              >
-                <X className="h-4 w-4 text-gray-500" />
-              </button>
-            )}
+        <div className="mb-4 space-y-3">
+          <div className="flex flex-wrap gap-2 items-center">
+            <div className="relative flex-1 min-w-48">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+              <Input
+                placeholder="Search sheets..."
+                value={searchTerm}
+                onChange={handleSearchChange}
+                className="pl-8 pr-8"
+              />
+              {searchTerm && (
+                <button
+                  onClick={clearSearch}
+                  className="absolute right-2.5 top-2.5"
+                  aria-label="Clear search"
+                >
+                  <X className="h-4 w-4 text-gray-500" />
+                </button>
+              )}
+            </div>
+            
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="flex items-center gap-1.5">
+                  <Filter className="h-4 w-4" />
+                  <span className="hidden sm:inline">Filter</span>
+                  {selectedPattern && <Badge variant="secondary" className="ml-1">{selectedPattern}</Badge>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-0" align="end">
+                <Command>
+                  <CommandInput placeholder="Search patterns..." />
+                  <CommandEmpty>No patterns found</CommandEmpty>
+                  <CommandGroup>
+                    {patterns.map((pattern) => (
+                      <CommandItem
+                        key={pattern}
+                        onSelect={() => setSelectedPattern(pattern)}
+                        className="cursor-pointer"
+                      >
+                        {pattern}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </Command>
+                {selectedPattern && (
+                  <div className="p-2 border-t">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={clearPatternFilter}
+                      className="w-full"
+                    >
+                      Clear Filter
+                    </Button>
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
         
-        {filteredSheets.length > 0 ? (
-          <div>
-            {filteredSheets.length > 10 ? (
-              <Accordion type="multiple" className="w-full">
-                {Array.from(new Array(Math.ceil(filteredSheets.length / 10))).map((_, groupIndex) => {
-                  const groupStart = groupIndex * 10;
-                  const groupEnd = Math.min((groupIndex + 1) * 10, filteredSheets.length);
-                  const groupSheets = filteredSheets.slice(groupStart, groupEnd);
-                  const groupTitle = `Sheets ${groupStart + 1}-${groupEnd}`;
-                  
-                  return (
-                    <AccordionItem key={groupIndex} value={`group-${groupIndex}`}>
-                      <AccordionTrigger className="hover:no-underline">
-                        <div className="flex items-center justify-between w-full">
-                          <span>{groupTitle}</span>
-                          <span className="text-sm text-muted-foreground">
-                            {groupSheets.filter(name => selectedSheets.includes(name)).length} / {groupSheets.length} selected
-                          </span>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-2">
-                          {groupSheets.map((name) => (
-                            <div key={name} className="flex items-center space-x-2">
-                              <Checkbox 
-                                id={`sheet-${name}`}
-                                checked={selectedSheets.includes(name)}
-                                onCheckedChange={() => handleSheetSelection(name)}
-                              />
-                              <Label htmlFor={`sheet-${name}`} className="truncate">{name}</Label>
-                            </div>
-                          ))}
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  )
-                })}
-              </Accordion>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                {filteredSheets.map((name) => (
-                  <div key={name} className="flex items-center space-x-2">
-                    <Checkbox 
-                      id={`sheet-${name}`}
-                      checked={selectedSheets.includes(name)}
-                      onCheckedChange={() => handleSheetSelection(name)}
-                    />
-                    <Label htmlFor={`sheet-${name}`} className="truncate">{name}</Label>
+        {Object.keys(groupedSheets).length > 0 ? (
+          <div className="border rounded-md">
+            {Object.entries(groupedSheets).map(([groupName, sheets]) => (
+              <div key={groupName} className="border-b last:border-b-0">
+                <div
+                  className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50"
+                  onClick={() => toggleGroup(groupName)}
+                >
+                  <div className="flex items-center gap-3">
+                    {expandedGroups.includes(groupName) ? 
+                      <ChevronUp className="h-4 w-4 flex-shrink-0" /> : 
+                      <ChevronDown className="h-4 w-4 flex-shrink-0" />
+                    }
+                    <span className="font-medium">{groupName}</span>
+                    <Badge variant="outline" className="ml-2">
+                      {sheets.length} {sheets.length === 1 ? 'sheet' : 'sheets'}
+                    </Badge>
                   </div>
-                ))}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleGroupSelectAll(groupName);
+                    }}
+                  >
+                    {sheets.every(sheet => selectedSheets.includes(sheet)) ? 'Deselect All' : 'Select All'}
+                  </Button>
+                </div>
+                {expandedGroups.includes(groupName) && (
+                  <div className="p-3 pt-0">
+                    <ScrollArea className={sheets.length > 12 ? "h-48" : ""}>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 pt-2">
+                        {sheets.map((name) => (
+                          <div key={name} className="flex items-center space-x-2 py-1.5 px-1.5 rounded hover:bg-accent">
+                            <Checkbox 
+                              id={`sheet-${name}`}
+                              checked={selectedSheets.includes(name)}
+                              onCheckedChange={() => handleSheetSelection(name)}
+                            />
+                            <Label 
+                              htmlFor={`sheet-${name}`} 
+                              className="truncate text-sm cursor-pointer"
+                              title={name}
+                            >
+                              {name}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                )}
               </div>
-            )}
+            ))}
           </div>
         ) : searchTerm ? (
           <div className="text-center py-8 text-gray-500">No sheets found matching "{searchTerm}"</div>
