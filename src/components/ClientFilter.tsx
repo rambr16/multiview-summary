@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import {
@@ -37,13 +38,22 @@ const ClientFilter: React.FC<ClientFilterProps> = ({
     const allClients = data.map(row => {
       const clientValue = row[clientCol];
       return clientValue ? String(clientValue) : null;
-    }).filter(Boolean); // Remove null/undefined values
+    }).filter(Boolean) as string[]; // Remove null/undefined values
     
-    // Filter out duplicates and exclude those with " - Summary"
-    const uniqueClients = [...new Set(allClients)]
-      .filter(client => !client.includes(" - Summary"));
+    // Create a list of unique clients, excluding those with " - Summary"
+    const uniqueSet = new Set<string>();
     
-    return uniqueClients.sort();
+    allClients.forEach(client => {
+      // Explicitly check for the exact " - Summary" substring
+      if (!client.includes(" - Summary")) {
+        uniqueSet.add(client);
+      }
+    });
+    
+    // Convert set to array and sort
+    const uniqueClients = Array.from(uniqueSet).sort();
+    
+    return uniqueClients;
   }, [data]);
 
   const filteredClients = useMemo(() => {
