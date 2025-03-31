@@ -4,7 +4,7 @@ import { processWorkbook } from './fileReader';
 import { extractSheetData } from './dataTransformer';
 import { generateSummaryView } from './summaryGenerator';
 import { downloadCsv } from './exportUtils';
-import { DataRow } from './fileTypes';
+import type { DataRow } from './fileTypes';
 
 export { 
   processWorkbook,
