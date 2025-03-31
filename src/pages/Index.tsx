@@ -18,6 +18,7 @@ const Index = () => {
   const [error, setError] = useState<string | null>(null);
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
   const [viewType, setViewType] = useState<"detailed" | "summary">("detailed");
+  const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleFileProcessed = (wb: XLSX.WorkBook, sheets: string[]) => {
@@ -26,6 +27,7 @@ const Index = () => {
     setSelectedSheets([]);
     setSummaryData([]);
     setFilteredData([]);
+    setSelectedClient(null);
     setError(null);
   };
 
@@ -47,6 +49,7 @@ const Index = () => {
     try {
       setIsLoading(true);
       setError(null);
+      setSelectedClient(null); // Reset client filter when generating new data
       
       const processedData = extractSheetData(workbook, selectedSheets);
       
@@ -94,6 +97,8 @@ const Index = () => {
           setFilteredData={setFilteredData}
           viewType={viewType}
           setViewType={setViewType}
+          selectedClient={selectedClient}
+          setSelectedClient={setSelectedClient}
         />
       )}
     </div>

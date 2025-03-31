@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileDown } from "lucide-react";
@@ -14,6 +14,8 @@ interface SummaryResultsProps {
   setFilteredData: (data: DataRow[]) => void;
   viewType: "detailed" | "summary";
   setViewType: (type: "detailed" | "summary") => void;
+  selectedClient: string | null;
+  setSelectedClient: (client: string | null) => void;
 }
 
 const SummaryResults: React.FC<SummaryResultsProps> = ({
@@ -21,10 +23,10 @@ const SummaryResults: React.FC<SummaryResultsProps> = ({
   filteredData,
   setFilteredData,
   viewType,
-  setViewType
+  setViewType,
+  selectedClient,
+  setSelectedClient
 }) => {
-  const [selectedClient, setSelectedClient] = useState<string | null>(null);
-
   const handleClientFilter = (client: string | null) => {
     setSelectedClient(client);
     
