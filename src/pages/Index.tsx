@@ -1,18 +1,26 @@
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Input } from "@/components/ui/input";
 import SheetSummary from "@/components/SheetSummary";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import EmptyState from "@/components/EmptyState";
 import AppsScriptInfo from "@/components/AppsScriptInfo";
+import ClientFilter from "@/components/ClientFilter";
 import { useToast } from "@/hooks/use-toast";
-import { FileDown, Upload } from "lucide-react";
+import { FileDown, Upload, Search, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import * as XLSX from 'xlsx';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 interface DataRow {
   [key: string]: string | number;
@@ -24,8 +32,12 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
   const [summaryData, setSummaryData] = useState<DataRow[]>([]);
+  const [filteredData, setFilteredData] = useState<DataRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedClient, setSelectedClient] = useState<string | null>(null);
+  const [viewType, setViewType] = useState<"detailed" | "summary">("detailed");
   const { toast } = useToast();
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -43,6 +55,7 @@ const Index = () => {
       setIsProcessingFile(true);
       setError(null);
       setSummaryData([]);
+      setFilteredData([]);
       
       const data = await file.arrayBuffer();
       const wb = XLSX.read(data);
@@ -66,6 +79,13 @@ const Index = () => {
     }
   };
 
+  const filteredSheets = useMemo(() => {
+    if (!searchTerm) return sheetNames;
+    return sheetNames.filter(name => 
+      name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [sheetNames, searchTerm]);
+
   const handleSheetSelection = (sheetName: string) => {
     setSelectedSheets(prev => 
       prev.includes(sheetName) 
@@ -75,10 +95,10 @@ const Index = () => {
   };
 
   const handleSelectAll = () => {
-    if (selectedSheets.length === sheetNames.length) {
+    if (selectedSheets.length === filteredSheets.length) {
       setSelectedSheets([]);
     } else {
-      setSelectedSheets([...sheetNames]);
+      setSelectedSheets([...filteredSheets]);
     }
   };
 
@@ -138,6 +158,7 @@ const Index = () => {
       });
       
       setSummaryData(processedData);
+      setFilteredData(processedData);
       
       toast({
         title: "Summary generated",
@@ -151,13 +172,94 @@ const Index = () => {
     }
   };
 
+  const handleClientFilter = (client: string | null) => {
+    setSelectedClient(client);
+    if (!client) {
+      setFilteredData(summaryData);
+      return;
+    }
+
+    // Find client field name since it might vary
+    const clientField = summaryData.length > 0 ? 
+      (Object.keys(summaryData[0]).find(key => 
+        key.toLowerCase().includes('client') && summaryData.some(row => row[key] === client)
+      ) || null) : null;
+
+    if (!clientField) {
+      setFilteredData(summaryData);
+      return;
+    }
+
+    const filtered = summaryData.filter(row => row[clientField] === client);
+    setFilteredData(filtered);
+  };
+
+  const getSummaryView = () => {
+    if (!filteredData.length) return [];
+
+    // Find numeric columns to summarize
+    const columns = Object.keys(filteredData[0]);
+    const numericColumns = columns.filter(col => 
+      typeof filteredData[0][col] === 'number' || 
+      !isNaN(Number(filteredData[0][col]))
+    );
+
+    // Group by client if possible
+    const clientField = columns.find(col => col.toLowerCase().includes('client')) || null;
+    
+    if (!clientField) {
+      // Just aggregate all numeric values
+      const summary: DataRow = { total_records: filteredData.length };
+      numericColumns.forEach(col => {
+        const sum = filteredData.reduce((acc, row) => {
+          const val = typeof row[col] === 'number' ? row[col] : Number(row[col]) || 0;
+          return acc + (val as number);
+        }, 0);
+        summary[col] = sum;
+      });
+      return [summary];
+    } else {
+      // Group by client
+      const clientGroups: { [key: string]: DataRow } = {};
+      
+      filteredData.forEach(row => {
+        const client = String(row[clientField] || 'Unknown');
+        if (!clientGroups[client]) {
+          clientGroups[client] = { 
+            [clientField]: client,
+            record_count: 0 
+          };
+          
+          numericColumns.forEach(col => {
+            clientGroups[client][col] = 0;
+          });
+        }
+        
+        clientGroups[client].record_count = (clientGroups[client].record_count as number) + 1;
+        
+        numericColumns.forEach(col => {
+          if (col === 'record_count') return;
+          const val = typeof row[col] === 'number' ? row[col] : Number(row[col]) || 0;
+          clientGroups[client][col] = (clientGroups[client][col] as number) + (val as number);
+        });
+      });
+      
+      return Object.values(clientGroups);
+    }
+  };
+  
+  const summaryViewData = useMemo(() => {
+    if (viewType !== "summary") return filteredData;
+    return getSummaryView();
+  }, [filteredData, viewType]);
+
   const downloadCsv = () => {
-    if (summaryData.length === 0) return;
+    if (summaryViewData.length === 0) return;
     
     try {
       // Create a new workbook for export
       const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(summaryData);
+      const ws = XLSX.utils.json_to_sheet(summaryViewData);
       
       // Add the worksheet to the workbook
       XLSX.utils.book_append_sheet(wb, ws, "Summary");
@@ -173,6 +275,14 @@ const Index = () => {
       console.error('Error downloading CSV:', err);
       setError("Failed to download CSV file. Please try again.");
     }
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+
+  const clearSearch = () => {
+    setSearchTerm("");
   };
 
   return (
@@ -227,24 +337,90 @@ const Index = () => {
               size="sm" 
               onClick={handleSelectAll}
             >
-              {selectedSheets.length === sheetNames.length ? "Deselect All" : "Select All"}
+              {selectedSheets.length === filteredSheets.length && filteredSheets.length > 0 ? "Deselect All" : "Select All"}
             </Button>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-[200px] rounded border p-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                {sheetNames.map((name) => (
-                  <div key={name} className="flex items-center space-x-2">
-                    <Checkbox 
-                      id={`sheet-${name}`}
-                      checked={selectedSheets.includes(name)}
-                      onCheckedChange={() => handleSheetSelection(name)}
-                    />
-                    <Label htmlFor={`sheet-${name}`} className="truncate">{name}</Label>
-                  </div>
-                ))}
+            <div className="mb-4 relative">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                <Input
+                  placeholder="Search sheets..."
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                  className="pl-8 pr-8"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={clearSearch}
+                    className="absolute right-2.5 top-2.5"
+                    aria-label="Clear search"
+                  >
+                    <X className="h-4 w-4 text-gray-500" />
+                  </button>
+                )}
               </div>
-            </ScrollArea>
+            </div>
+            
+            {filteredSheets.length > 0 ? (
+              <div>
+                {filteredSheets.length > 10 ? (
+                  <Accordion type="multiple" className="w-full">
+                    {Array.from(new Array(Math.ceil(filteredSheets.length / 10))).map((_, groupIndex) => {
+                      const groupStart = groupIndex * 10;
+                      const groupEnd = Math.min((groupIndex + 1) * 10, filteredSheets.length);
+                      const groupSheets = filteredSheets.slice(groupStart, groupEnd);
+                      const groupTitle = `Sheets ${groupStart + 1}-${groupEnd}`;
+                      
+                      return (
+                        <AccordionItem key={groupIndex} value={`group-${groupIndex}`}>
+                          <AccordionTrigger className="hover:no-underline">
+                            <div className="flex items-center justify-between w-full">
+                              <span>{groupTitle}</span>
+                              <span className="text-sm text-muted-foreground">
+                                {groupSheets.filter(name => selectedSheets.includes(name)).length} / {groupSheets.length} selected
+                              </span>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-2">
+                              {groupSheets.map((name) => (
+                                <div key={name} className="flex items-center space-x-2">
+                                  <Checkbox 
+                                    id={`sheet-${name}`}
+                                    checked={selectedSheets.includes(name)}
+                                    onCheckedChange={() => handleSheetSelection(name)}
+                                  />
+                                  <Label htmlFor={`sheet-${name}`} className="truncate">{name}</Label>
+                                </div>
+                              ))}
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      )
+                    })}
+                  </Accordion>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    {filteredSheets.map((name) => (
+                      <div key={name} className="flex items-center space-x-2">
+                        <Checkbox 
+                          id={`sheet-${name}`}
+                          checked={selectedSheets.includes(name)}
+                          onCheckedChange={() => handleSheetSelection(name)}
+                        />
+                        <Label htmlFor={`sheet-${name}`} className="truncate">{name}</Label>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : searchTerm ? (
+              <div className="text-center py-8 text-gray-500">No sheets found matching "{searchTerm}"</div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">No sheets found in workbook</div>
+            )}
+            
             <div className="mt-4 flex justify-end">
               <Button 
                 onClick={generateSummary} 
@@ -272,7 +448,25 @@ const Index = () => {
             </Button>
           </CardHeader>
           <CardContent>
-            <SheetSummary data={summaryData} />
+            <ClientFilter 
+              data={summaryData}
+              onFilter={handleClientFilter}
+              viewType={viewType}
+              onViewTypeChange={setViewType}
+            />
+            
+            {filteredData.length > 0 ? (
+              <div className="mt-6">
+                <SheetSummary data={summaryViewData} />
+                <div className="mt-4 text-sm text-right text-muted-foreground">
+                  {`Showing ${summaryViewData.length} ${viewType === "summary" ? "summarized" : ""} ${summaryViewData.length === 1 ? "record" : "records"}`}
+                </div>
+              </div>
+            ) : (
+              <div className="py-8 text-center text-gray-500">
+                No data to display. Please check your filter settings.
+              </div>
+            )}
           </CardContent>
         </Card>
       ) : sheetNames.length > 0 ? (
