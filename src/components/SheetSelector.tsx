@@ -38,11 +38,12 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
   }, [sheetNames, searchTerm]);
 
   const handleSheetSelection = (sheetName: string) => {
-    onSheetsChange(prev => 
-      prev.includes(sheetName) 
-        ? prev.filter(name => name !== sheetName)
-        : [...prev, sheetName]
-    );
+    // Fix: Pass the new array directly instead of a function
+    const newSelection = selectedSheets.includes(sheetName)
+      ? selectedSheets.filter(name => name !== sheetName)
+      : [...selectedSheets, sheetName];
+    
+    onSheetsChange(newSelection);
   };
 
   const handleSelectAll = () => {
