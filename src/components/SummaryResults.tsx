@@ -6,7 +6,7 @@ import { FileDown } from "lucide-react";
 import SheetSummary from "@/components/SheetSummary";
 import ClientFilter from "@/components/ClientFilter";
 import EmptyState from "@/components/EmptyState";
-import { DataRow, downloadCsv, generateSummaryView } from "@/utils/fileProcessor";
+import { DataRow, downloadCsv } from "@/utils/fileProcessor";
 
 interface SummaryResultsProps {
   summaryData: DataRow[];
@@ -23,7 +23,6 @@ const SummaryResults: React.FC<SummaryResultsProps> = ({
   filteredData,
   setFilteredData,
   viewType,
-  setViewType,
   selectedClient,
   setSelectedClient
 }) => {
@@ -50,21 +49,8 @@ const SummaryResults: React.FC<SummaryResultsProps> = ({
     setFilteredData(filtered);
   };
 
-  // Generate appropriate data for the current view
-  const summaryViewData = viewType === "summary" 
-    ? generateSummaryView(filteredData)
-    : [];
-
-  const detailedViewData = viewType === "detailed" 
-    ? filteredData
-    : [];
-
   const handleDownloadCsv = () => {
-    if (viewType === "summary") {
-      downloadCsv(summaryViewData);
-    } else {
-      downloadCsv(filteredData);
-    }
+    downloadCsv(filteredData);
   };
 
   if (!summaryData.length) {
@@ -75,9 +61,6 @@ const SummaryResults: React.FC<SummaryResultsProps> = ({
       />
     );
   }
-
-  // Current view data based on the view type
-  const currentData = viewType === "summary" ? summaryViewData : detailedViewData;
 
   return (
     <Card>
@@ -101,12 +84,11 @@ const SummaryResults: React.FC<SummaryResultsProps> = ({
         {filteredData.length > 0 ? (
           <div className="mt-6">
             <SheetSummary 
-              data={summaryViewData} 
-              detailedData={detailedViewData}
+              data={filteredData} 
               viewType={viewType}
             />
             <div className="mt-4 text-sm text-right text-muted-foreground">
-              {`Showing ${currentData.length} ${currentData.length === 1 ? "record" : "records"}`}
+              {`Showing ${filteredData.length} ${filteredData.length === 1 ? "record" : "records"}`}
             </div>
           </div>
         ) : (
