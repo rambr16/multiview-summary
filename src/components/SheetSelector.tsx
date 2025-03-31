@@ -137,7 +137,7 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
       }
     } else {
       // Default alphabetical grouping when no filter is selected
-      for (let i =: 0; i < 26; i++) {
+      for (let i = 0; i < 26; i++) {
         const letter = String.fromCharCode(65 + i);
         const sheetsStartingWithLetter = sheetNames.filter(name => 
           name.toUpperCase().startsWith(letter)
