@@ -1,12 +1,11 @@
 
 import React from "react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileDown } from "lucide-react";
-import SheetSummary from "@/components/SheetSummary";
 import ClientFilter from "@/components/ClientFilter";
 import EmptyState from "@/components/EmptyState";
-import { DataRow, downloadCsv } from "@/utils/fileProcessor";
+import { DataRow } from "@/utils/fileProcessor";
+import SheetSummary from "@/components/SheetSummary";
+import DownloadButton from "@/components/DownloadButton";
 
 interface SummaryResultsProps {
   summaryData: DataRow[];
@@ -49,10 +48,6 @@ const SummaryResults: React.FC<SummaryResultsProps> = ({
     setFilteredData(filtered);
   };
 
-  const handleDownloadCsv = () => {
-    downloadCsv(filteredData);
-  };
-
   if (!summaryData.length) {
     return (
       <EmptyState
@@ -66,13 +61,7 @@ const SummaryResults: React.FC<SummaryResultsProps> = ({
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Summary Report</CardTitle>
-        <Button
-          onClick={handleDownloadCsv}
-          variant="outline"
-          size="sm"
-        >
-          <FileDown className="mr-2 h-4 w-4" /> Download CSV
-        </Button>
+        <DownloadButton data={filteredData} />
       </CardHeader>
       <CardContent>
         <ClientFilter 
@@ -81,21 +70,10 @@ const SummaryResults: React.FC<SummaryResultsProps> = ({
           selectedClient={selectedClient}
         />
         
-        {filteredData.length > 0 ? (
-          <div className="mt-6">
-            <SheetSummary 
-              data={filteredData} 
-              viewType={viewType}
-            />
-            <div className="mt-4 text-sm text-right text-muted-foreground">
-              {`Showing ${filteredData.length} ${filteredData.length === 1 ? "record" : "records"}`}
-            </div>
-          </div>
-        ) : (
-          <div className="py-8 text-center text-gray-500">
-            No data to display. Please check your filter settings.
-          </div>
-        )}
+        <ResultsDisplay 
+          filteredData={filteredData} 
+          viewType={viewType} 
+        />
       </CardContent>
     </Card>
   );
