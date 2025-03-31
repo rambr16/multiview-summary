@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { formatColumnName, formatMetric } from "./formatters";
+import { formatColumnName, formatMetric, getMetricHighlightColor, getCardHighlightColor } from "./formatters";
 
 interface SummaryCardsProps {
   summaryTotals: Record<string, number | string>;
@@ -31,8 +31,15 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({
           {summaryCardColumns.map(col => {
             if (!summaryTotals.hasOwnProperty(col)) return null;
             
+            // Get the appropriate background color for conditional highlighting
+            const bgHighlightColor = getCardHighlightColor(col, summaryTotals[col]);
+            const textHighlightColor = getMetricHighlightColor(col, summaryTotals[col]);
+            
             return (
-              <div key={`summary-${col}`} className="bg-muted/50 p-3 rounded-md">
+              <div 
+                key={`summary-${col}`} 
+                className={`p-3 rounded-md ${bgHighlightColor || 'bg-muted/50'}`}
+              >
                 <dt className="text-sm font-medium text-muted-foreground">
                   {formatColumnName(col)}
                   {getMetricDescription(col) && (
@@ -41,7 +48,7 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({
                     </span>
                   )}
                 </dt>
-                <dd className="text-lg font-semibold mt-1">
+                <dd className={`text-lg font-semibold mt-1 ${textHighlightColor}`}>
                   {formatMetric(col, summaryTotals[col])}
                 </dd>
               </div>

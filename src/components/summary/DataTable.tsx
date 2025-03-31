@@ -9,7 +9,7 @@ import {
   TableRow,
   TableFooter
 } from "@/components/ui/table";
-import { formatColumnName, formatCellValue, formatMetric } from "./formatters";
+import { formatColumnName, formatCellValue, formatMetric, getMetricHighlightColor } from "./formatters";
 import { DataRow } from "@/utils/fileTypes";
 
 interface DataTableProps {
@@ -42,26 +42,41 @@ const DataTable: React.FC<DataTableProps> = ({
         <TableBody>
           {data.map((row, i) => (
             <TableRow key={i}>
-              {displayColumns.map((column) => (
-                <TableCell key={`${i}-${column}`} className="whitespace-nowrap">
-                  {['prr_vs_rr', 'rr', 'bounce_rate'].includes(column) 
-                    ? formatMetric(column, row[column])
-                    : formatCellValue(row[column])}
-                </TableCell>
-              ))}
+              {displayColumns.map((column) => {
+                // Get highlight color for conditional formatting
+                const highlightColor = ['prr_vs_rr', 'rr', 'bounce_rate', 'unique_leads_per_positive'].includes(column)
+                  ? getMetricHighlightColor(column, row[column])
+                  : '';
+                
+                return (
+                  <TableCell key={`${i}-${column}`} className={`whitespace-nowrap ${highlightColor}`}>
+                    {['prr_vs_rr', 'rr', 'bounce_rate'].includes(column) 
+                      ? formatMetric(column, row[column])
+                      : formatCellValue(row[column])}
+                  </TableCell>
+                );
+              })}
             </TableRow>
           ))}
         </TableBody>
         {hasNumericColumns && (
           <TableFooter>
             <TableRow>
-              {displayColumns.map((column) => (
-                <TableCell key={`total-${column}`} className="font-medium">
-                  {numericColumns.includes(column) 
-                    ? formatMetric(column, summaryTotals[column])
-                    : column.toLowerCase().includes('client') ? 'Total' : ''}
-                </TableCell>
-              ))}
+              {displayColumns.map((column) => {
+                // Get highlight color for conditional formatting in footer row
+                const highlightColor = numericColumns.includes(column) && 
+                  ['prr_vs_rr', 'rr', 'bounce_rate', 'unique_leads_per_positive'].includes(column)
+                  ? getMetricHighlightColor(column, summaryTotals[column])
+                  : '';
+                
+                return (
+                  <TableCell key={`total-${column}`} className={`font-medium ${highlightColor}`}>
+                    {numericColumns.includes(column) 
+                      ? formatMetric(column, summaryTotals[column])
+                      : column.toLowerCase().includes('client') ? 'Total' : ''}
+                  </TableCell>
+                );
+              })}
             </TableRow>
           </TableFooter>
         )}

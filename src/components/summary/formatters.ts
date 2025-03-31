@@ -34,3 +34,71 @@ export const formatMetric = (key: string, value: any): string => {
   
   return formatCellValue(value);
 };
+
+// Function to determine highlight color based on metric values
+export const getMetricHighlightColor = (key: string, value: any): string => {
+  if (value === null || value === undefined || value === 'no positive reply') {
+    return '';
+  }
+  
+  const numValue = typeof value === 'number' ? value : parseFloat(String(value));
+  
+  // Don't highlight if we can't parse it as a number
+  if (isNaN(numValue)) return '';
+  
+  // Apply conditional highlighting based on metric type
+  switch(key) {
+    // Bounce rate: > 3% is red, <= 3% is green
+    case 'bounce_rate':
+      return numValue > 3 ? 'text-red-600' : 'text-green-600';
+    
+    // PRR vs RR: < 10% is red, >= 10% is green
+    case 'prr_vs_rr':
+      return numValue < 10 ? 'text-red-600' : 'text-green-600';
+    
+    // Reply Rate: < 1% is red, >= 1% is green
+    case 'rr':
+      return numValue < 1 ? 'text-red-600' : 'text-green-600';
+    
+    // Unique Leads per Positive: > 1000 is red, <= 1000 is green
+    case 'unique_leads_per_positive':
+      return numValue > 1000 ? 'text-red-600' : 'text-green-600';
+    
+    default:
+      return '';
+  }
+};
+
+// Function to determine highlight background color for cards
+export const getCardHighlightColor = (key: string, value: any): string => {
+  if (value === null || value === undefined || value === 'no positive reply') {
+    return '';
+  }
+  
+  const numValue = typeof value === 'number' ? value : parseFloat(String(value));
+  
+  // Don't highlight if we can't parse it as a number
+  if (isNaN(numValue)) return '';
+  
+  // Apply conditional highlighting based on metric type
+  switch(key) {
+    // Bounce rate: > 3% is red, <= 3% is green
+    case 'bounce_rate':
+      return numValue > 3 ? 'bg-red-50' : 'bg-green-50';
+    
+    // PRR vs RR: < 10% is red, >= 10% is green
+    case 'prr_vs_rr':
+      return numValue < 10 ? 'bg-red-50' : 'bg-green-50';
+    
+    // Reply Rate: < 1% is red, >= 1% is green
+    case 'rr':
+      return numValue < 1 ? 'bg-red-50' : 'bg-green-50';
+    
+    // Unique Leads per Positive: > 1000 is red, <= 1000 is green
+    case 'unique_leads_per_positive':
+      return numValue > 1000 ? 'bg-red-50' : 'bg-green-50';
+    
+    default:
+      return '';
+  }
+};
