@@ -6,11 +6,17 @@ import { DataRow, downloadCsv } from "@/utils/fileProcessor";
 
 interface DownloadButtonProps {
   data: DataRow[];
+  selectedClient: string | null;
+  summaryData: DataRow[]; // This is all data before filtering
 }
 
-const DownloadButton: React.FC<DownloadButtonProps> = ({ data }) => {
+const DownloadButton: React.FC<DownloadButtonProps> = ({ 
+  data, 
+  selectedClient,
+  summaryData 
+}) => {
   const handleDownloadCsv = () => {
-    downloadCsv(data);
+    downloadCsv(data, selectedClient, summaryData);
   };
 
   return (

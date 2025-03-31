@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import ClientFilter from "@/components/ClientFilter";
@@ -61,7 +62,11 @@ const SummaryResults: React.FC<SummaryResultsProps> = ({
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Summary Report</CardTitle>
-        <DownloadButton data={filteredData} />
+        <DownloadButton 
+          data={filteredData} 
+          selectedClient={selectedClient} 
+          summaryData={summaryData}
+        />
       </CardHeader>
       <CardContent>
         <ClientFilter 
