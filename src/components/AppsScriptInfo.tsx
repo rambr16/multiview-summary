@@ -10,16 +10,17 @@ const AppsScriptInfo = () => {
       <AlertTitle>About This App</AlertTitle>
       <AlertDescription>
         <p className="mt-2">
-          This is a demo of a Google Apps Script Web App that would allow you to analyze and summarize Google Sheets data.
-          In a real implementation, this would connect to Google Sheets API to:
+          This is a demo of a CSV Workbook Analyzer that allows you to analyze and summarize data from CSV files.
+          In a real implementation, this would:
         </p>
         <ul className="list-disc pl-6 mt-2 space-y-1 text-sm">
-          <li>Fetch real sheet data from your Google account</li>
+          <li>Parse and process uploaded CSV files</li>
+          <li>Extract individual sheets or sections from the workbook</li>
           <li>Process and aggregate data across multiple sheets</li>
           <li>Generate accurate summaries based on your selection</li>
         </ul>
         <p className="mt-2 text-sm font-medium">
-          For this demo, we're simulating the API responses with sample data.
+          For this demo, we're simulating the file processing with sample data.
         </p>
       </AlertDescription>
     </Alert>

@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -11,53 +10,51 @@ import SheetSummary from "@/components/SheetSummary";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import EmptyState from "@/components/EmptyState";
 import AppsScriptInfo from "@/components/AppsScriptInfo";
-import { useToast } from "@/components/ui/use-toast";
-import { FileDown } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { FileDown, Upload } from "lucide-react";
 
 const Index = () => {
-  const [sheetUrl, setSheetUrl] = useState("");
   const [sheetNames, setSheetNames] = useState<string[]>([]);
   const [selectedSheets, setSelectedSheets] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isFetchingSheets, setIsFetchingSheets] = useState(false);
+  const [isProcessingFile, setIsProcessingFile] = useState(false);
   const [summaryData, setSummaryData] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const handleSheetUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSheetUrl(e.target.value);
-    setError(null);
-  };
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  const handleFetchSheets = async () => {
-    if (!sheetUrl) {
-      setError("Please enter a Google Sheet URL");
+    // Check if the file is a CSV
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      setError("Please upload a CSV file");
       return;
     }
 
     try {
-      setIsFetchingSheets(true);
+      setIsProcessingFile(true);
       setError(null);
       
-      // This would be replaced with actual API call in a real Google Apps Script
-      // Simulating API call to fetch sheet names
+      // In a real app, we would parse the CSV file here
+      // For this demo, we'll simulate loading sheet names
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Mock data - in real app this would come from the Google Sheets API
-      const mockSheetNames = ["Campaign 2023", "Q1 Reports", "Client A", "Client B", "Marketing Stats"];
+      // Mock data - in real app this would come from parsing the CSV
+      const mockSheetNames = ["Sales Data", "Marketing", "HR Records", "Finance", "Customer Feedback"];
       setSheetNames(mockSheetNames);
       setSelectedSheets([]);
       setSummaryData([]);
       
       toast({
-        title: "Sheets loaded",
-        description: `Found ${mockSheetNames.length} sheets in the document`,
+        title: "CSV file loaded",
+        description: `Found ${mockSheetNames.length} sheets in the workbook`,
       });
     } catch (err) {
-      setError("Failed to fetch sheets. Please check the URL and ensure you have access.");
+      setError("Failed to process the CSV file. Please check the file format.");
       console.error(err);
     } finally {
-      setIsFetchingSheets(false);
+      setIsProcessingFile(false);
     }
   };
 
@@ -87,10 +84,10 @@ const Index = () => {
       setIsLoading(true);
       setError(null);
       
-      // Simulate API call to generate summary
+      // Simulate processing the CSV data
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // Mock data - in real app this would be calculated from the sheets
+      // Mock data - in real app this would be calculated from the CSV
       const mockSummaryData = [
         {
           client_name: "Acme Inc",
@@ -174,31 +171,38 @@ const Index = () => {
   return (
     <div className="container mx-auto py-8 px-4 max-w-6xl">
       <h1 className="text-3xl font-bold text-center mb-8">
-        Google Sheets Summary Generator
+        CSV Workbook Summary Generator
       </h1>
       
       <AppsScriptInfo />
       
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Step 1: Enter Google Sheet URL</CardTitle>
+          <CardTitle>Step 1: Upload CSV Workbook</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col gap-4 sm:flex-row">
-            <Input
-              placeholder="https://docs.google.com/spreadsheets/d/..."
-              value={sheetUrl}
-              onChange={handleSheetUrlChange}
-              className="flex-1"
-            />
-            <Button 
-              onClick={handleFetchSheets} 
-              disabled={isFetchingSheets || !sheetUrl}
-              className="whitespace-nowrap"
-            >
-              {isFetchingSheets ? "Loading..." : "Fetch Sheets"}
-            </Button>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-center w-full">
+              <label htmlFor="csv-upload" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 border-gray-300">
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                  <Upload className="w-8 h-8 mb-3 text-gray-500" />
+                  <p className="mb-2 text-sm text-gray-500">
+                    <span className="font-semibold">Click to upload</span> or drag and drop
+                  </p>
+                  <p className="text-xs text-gray-500">CSV files only</p>
+                </div>
+                <input 
+                  id="csv-upload" 
+                  type="file" 
+                  accept=".csv" 
+                  className="hidden" 
+                  onChange={handleFileUpload} 
+                  disabled={isProcessingFile}
+                />
+              </label>
+            </div>
           </div>
+          {isProcessingFile && <div className="mt-4"><LoadingSpinner /></div>}
           {error && (
             <Alert variant="destructive" className="mt-4">
               <AlertDescription>{error}</AlertDescription>
