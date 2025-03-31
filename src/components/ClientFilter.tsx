@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import {
@@ -40,11 +39,9 @@ const ClientFilter: React.FC<ClientFilterProps> = ({
       return clientValue ? String(clientValue) : null;
     }).filter(Boolean); // Remove null/undefined values
     
-    // Filter out duplicates and exclude those with "-summary"
+    // Filter out duplicates and exclude those with "-Summary"
     const uniqueClients = [...new Set(allClients)]
-      .filter(client => !client.toLowerCase().includes('-summary'));
-    
-    console.log("Filtered client list:", uniqueClients);
+      .filter(client => !client.includes('-Summary'));
     
     return uniqueClients.sort();
   }, [data]);
