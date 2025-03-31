@@ -26,13 +26,26 @@ const DataTable: React.FC<DataTableProps> = ({
   summaryTotals
 }) => {
   const hasNumericColumns = numericColumns.length > 0;
+  
+  // Filter out the columns to hide
+  const columnsToHide = [
+    'unsubscribed_count', 
+    'client_email', 
+    'open_count',
+    'block_count'
+  ];
+  
+  const filteredDisplayColumns = displayColumns.filter(
+    column => !columnsToHide.includes(column) && 
+             !columnsToHide.some(col => column.toLowerCase() === col.toLowerCase())
+  );
 
   return (
     <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
-            {displayColumns.map((column) => (
+            {filteredDisplayColumns.map((column) => (
               <TableHead key={column} className="whitespace-nowrap">
                 {formatColumnName(column)}
               </TableHead>
@@ -42,7 +55,7 @@ const DataTable: React.FC<DataTableProps> = ({
         <TableBody>
           {data.map((row, i) => (
             <TableRow key={i}>
-              {displayColumns.map((column) => {
+              {filteredDisplayColumns.map((column) => {
                 // Get highlight color for conditional formatting
                 const highlightColor = ['prr_vs_rr', 'rr', 'bounce_rate', 'unique_leads_per_positive'].includes(column)
                   ? getMetricHighlightColor(column, row[column])
@@ -62,7 +75,7 @@ const DataTable: React.FC<DataTableProps> = ({
         {hasNumericColumns && (
           <TableFooter>
             <TableRow>
-              {displayColumns.map((column) => {
+              {filteredDisplayColumns.map((column) => {
                 // Get highlight color for conditional formatting in footer row
                 const highlightColor = numericColumns.includes(column) && 
                   ['prr_vs_rr', 'rr', 'bounce_rate', 'unique_leads_per_positive'].includes(column)
