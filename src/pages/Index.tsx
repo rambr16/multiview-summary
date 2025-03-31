@@ -12,6 +12,7 @@ import EmptyState from "@/components/EmptyState";
 import AppsScriptInfo from "@/components/AppsScriptInfo";
 import { useToast } from "@/hooks/use-toast";
 import { FileDown, Upload } from "lucide-react";
+import * as XLSX from 'xlsx';
 
 const Index = () => {
   const [sheetNames, setSheetNames] = useState<string[]>([]);
@@ -26,9 +27,10 @@ const Index = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Check if the file is a CSV
-    if (!file.name.toLowerCase().endsWith('.csv')) {
-      setError("Please upload a CSV file");
+    // Check if the file is a CSV or Excel file
+    const fileExt = file.name.split('.').pop()?.toLowerCase();
+    if (!(fileExt === 'csv' || fileExt === 'xlsx' || fileExt === 'xls')) {
+      setError("Please upload a CSV or Excel file (.csv, .xlsx, .xls)");
       return;
     }
 
@@ -36,22 +38,30 @@ const Index = () => {
       setIsProcessingFile(true);
       setError(null);
       
-      // In a real app, we would parse the CSV file here
-      // For this demo, we'll simulate loading sheet names
+      // For demo purposes, we'll simulate processing the file
+      // In a real app, we'd use the xlsx library to parse the file
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Mock data - in real app this would come from parsing the CSV
-      const mockSheetNames = ["Sales Data", "Marketing", "HR Records", "Finance", "Customer Feedback"];
+      let mockSheetNames: string[] = [];
+      
+      if (fileExt === 'csv') {
+        // For CSV, we'll mock a single sheet
+        mockSheetNames = ["CSV Data"];
+      } else {
+        // For Excel, we'll mock multiple sheets
+        mockSheetNames = ["Sales Data", "Marketing", "HR Records", "Finance", "Customer Feedback"];
+      }
+      
       setSheetNames(mockSheetNames);
       setSelectedSheets([]);
       setSummaryData([]);
       
       toast({
-        title: "CSV file loaded",
-        description: `Found ${mockSheetNames.length} sheets in the workbook`,
+        title: `${fileExt === 'csv' ? 'CSV' : 'Excel'} file loaded`,
+        description: `Found ${mockSheetNames.length} ${mockSheetNames.length === 1 ? 'sheet' : 'sheets'} in the workbook`,
       });
     } catch (err) {
-      setError("Failed to process the CSV file. Please check the file format.");
+      setError(`Failed to process the ${fileExt === 'csv' ? 'CSV' : 'Excel'} file. Please check the file format.`);
       console.error(err);
     } finally {
       setIsProcessingFile(false);
@@ -84,10 +94,10 @@ const Index = () => {
       setIsLoading(true);
       setError(null);
       
-      // Simulate processing the CSV data
+      // Simulate processing the data
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // Mock data - in real app this would be calculated from the CSV
+      // Mock data - in real app this would be calculated from the file
       const mockSummaryData = [
         {
           client_name: "Acme Inc",
@@ -171,30 +181,30 @@ const Index = () => {
   return (
     <div className="container mx-auto py-8 px-4 max-w-6xl">
       <h1 className="text-3xl font-bold text-center mb-8">
-        CSV Workbook Summary Generator
+        Workbook Summary Generator
       </h1>
       
       <AppsScriptInfo />
       
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Step 1: Upload CSV Workbook</CardTitle>
+          <CardTitle>Step 1: Upload Workbook File</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-center w-full">
-              <label htmlFor="csv-upload" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 border-gray-300">
+              <label htmlFor="file-upload" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 border-gray-300">
                 <div className="flex flex-col items-center justify-center pt-5 pb-6">
                   <Upload className="w-8 h-8 mb-3 text-gray-500" />
                   <p className="mb-2 text-sm text-gray-500">
                     <span className="font-semibold">Click to upload</span> or drag and drop
                   </p>
-                  <p className="text-xs text-gray-500">CSV files only</p>
+                  <p className="text-xs text-gray-500">CSV or Excel files (.csv, .xlsx, .xls)</p>
                 </div>
                 <input 
-                  id="csv-upload" 
+                  id="file-upload" 
                   type="file" 
-                  accept=".csv" 
+                  accept=".csv,.xlsx,.xls" 
                   className="hidden" 
                   onChange={handleFileUpload} 
                   disabled={isProcessingFile}

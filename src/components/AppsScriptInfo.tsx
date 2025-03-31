@@ -10,11 +10,11 @@ const AppsScriptInfo = () => {
       <AlertTitle>About This App</AlertTitle>
       <AlertDescription>
         <p className="mt-2">
-          This is a demo of a CSV Workbook Analyzer that allows you to analyze and summarize data from CSV files.
+          This is a demo of a Workbook Analyzer that allows you to analyze and summarize data from CSV and Excel files.
           In a real implementation, this would:
         </p>
         <ul className="list-disc pl-6 mt-2 space-y-1 text-sm">
-          <li>Parse and process uploaded CSV files</li>
+          <li>Parse and process uploaded CSV and Excel files</li>
           <li>Extract individual sheets or sections from the workbook</li>
           <li>Process and aggregate data across multiple sheets</li>
           <li>Generate accurate summaries based on your selection</li>
