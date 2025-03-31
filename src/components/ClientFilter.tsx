@@ -34,11 +34,17 @@ const ClientFilter: React.FC<ClientFilterProps> = ({
     
     if (!clientCol) return [];
     
-    const uniqueClients = [...new Set(data.map(row => row[clientCol]))]
-      // First filter out nulls/undefined
-      .filter(Boolean)
-      // Then exclude names with "-summary" or "-Summary" (case-insensitive)
-      .filter(client => !String(client).toLowerCase().includes('-summary'));
+    // Extract all client names
+    const allClients = data.map(row => {
+      const clientValue = row[clientCol];
+      return clientValue ? String(clientValue) : null;
+    }).filter(Boolean); // Remove null/undefined values
+    
+    // Filter out duplicates and exclude those with "-summary"
+    const uniqueClients = [...new Set(allClients)]
+      .filter(client => !client.toLowerCase().includes('-summary'));
+    
+    console.log("Filtered client list:", uniqueClients);
     
     return uniqueClients.sort();
   }, [data]);
