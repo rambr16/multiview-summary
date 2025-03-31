@@ -60,13 +60,19 @@ const SheetSummary: React.FC<SheetSummaryProps> = ({
     !columnsToExclude.includes(col.toLowerCase())
   );
 
-  // Calculate summary totals for numeric columns
+  // Calculate summary totals and aggregated metrics
   const summaryTotals = useMemo(() => {
     const totals: Record<string, number | string> = {};
     
     if (data.length === 0) return totals;
     
+    // First calculate base sum totals for numeric columns
     displayColumns.forEach(col => {
+      // Skip the calculated percentage fields - we'll compute these from raw values
+      if (["prr_vs_rr", "rr", "bounce_rate", "unique_leads_per_positive"].includes(col)) {
+        return;
+      }
+      
       // Check if this column contains numeric values
       const isNumeric = data.some(row => 
         typeof row[col] === 'number' || 
@@ -78,15 +84,28 @@ const SheetSummary: React.FC<SheetSummaryProps> = ({
           const value = typeof row[col] === 'number' ? row[col] : Number(row[col]) || 0;
           return sum + value;
         }, 0);
-      } else if (col === 'unique_leads_per_positive') {
-        // Special handling for unique_leads_per_positive
-        const totalUniqueSent = data.reduce((acc, row) => 
-          acc + (Number(row['unique_sent_count']) || 0), 0);
-        const totalPositiveReply = data.reduce((acc, row) => 
-          acc + (Number(row['positive_reply_count']) || 0), 0);
-        totals[col] = totalPositiveReply > 0 ? totalUniqueSent / totalPositiveReply : 'no positive reply';
       }
     });
+    
+    // Now calculate the aggregated metrics based on sum totals
+    
+    // PRR vs RR - Positive Reply Count / Reply Count (percentage)
+    const totalPositiveReply = Number(totals['positive_reply_count']) || 0;
+    const totalReply = Number(totals['reply_count']) || 0;
+    totals['prr_vs_rr'] = totalReply > 0 ? (totalPositiveReply / totalReply) * 100 : 0;
+    
+    // RR - Reply Count / Unique Sent Count (percentage)
+    const totalUniqueSent = Number(totals['unique_sent_count']) || 0;
+    totals['rr'] = totalUniqueSent > 0 ? (totalReply / totalUniqueSent) * 100 : 0;
+    
+    // Bounce - Bounce Count / Unique Sent Count (percentage)
+    const totalBounce = Number(totals['bounce_count']) || 0;
+    totals['bounce_rate'] = totalUniqueSent > 0 ? (totalBounce / totalUniqueSent) * 100 : 0;
+    
+    // Unique leads per positive - Unique Sent Count / Positive Reply Count
+    totals['unique_leads_per_positive'] = totalPositiveReply > 0 
+      ? totalUniqueSent / totalPositiveReply 
+      : 'no positive reply';
     
     return totals;
   }, [data, displayColumns]);
