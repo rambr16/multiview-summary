@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +31,11 @@ interface SheetSelectorProps {
 const MONTHS = [
   "January", "February", "March", "April", "May", "June", 
   "July", "August", "September", "October", "November", "December"
+];
+
+const MONTH_ABBREVIATIONS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun", 
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
 ];
 
 const SheetSelector: React.FC<SheetSelectorProps> = ({ 
@@ -87,11 +91,28 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
     const foundMonths = new Set<string>();
     
     sheetNames.forEach(name => {
-      MONTHS.forEach(month => {
-        if (name.includes(month) || name.includes(month.substring(0, 3))) {
+      const normalizedName = name.toLowerCase();
+      
+      MONTHS.forEach((month, index) => {
+        if (normalizedName.includes(month.toLowerCase()) || 
+            normalizedName.includes(MONTH_ABBREVIATIONS[index].toLowerCase()) ||
+            name.includes(month) ||
+            name.includes(MONTH_ABBREVIATIONS[index])) {
           foundMonths.add(month);
         }
       });
+      
+      const monthPattern = /\d+[-_\s](jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|january|february|march|april|may|june|july|august|september|october|november|december)/i;
+      const monthMatch = normalizedName.match(monthPattern);
+      if (monthMatch && monthMatch[1]) {
+        const matchedPart = monthMatch[1].toLowerCase();
+        MONTHS.forEach((month, index) => {
+          if (month.toLowerCase().startsWith(matchedPart) || 
+              MONTH_ABBREVIATIONS[index].toLowerCase() === matchedPart) {
+            foundMonths.add(month);
+          }
+        });
+      }
     });
     
     return Array.from(foundMonths);
@@ -101,25 +122,34 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
     const groups: Record<string, string[]> = {};
     
     if (filterType === "month" && selectedPattern) {
-      // Group by the selected month
       const month = selectedPattern;
-      const matchingSheets = sheetNames.filter(name => 
-        name.includes(month) || name.includes(month.substring(0, 3))
-      );
+      const monthIndex = MONTHS.indexOf(month);
+      const abbreviation = monthIndex >= 0 ? MONTH_ABBREVIATIONS[monthIndex].toLowerCase() : "";
+      
+      const matchingSheets = sheetNames.filter(name => {
+        const normalizedName = name.toLowerCase();
+        return normalizedName.includes(month.toLowerCase()) || 
+               normalizedName.includes(abbreviation) ||
+               name.includes(month) ||
+               name.includes(MONTH_ABBREVIATIONS[monthIndex]);
+      });
       
       if (matchingSheets.length) {
         groups[`${month}`] = matchingSheets;
       }
       
-      const otherSheets = sheetNames.filter(name => 
-        !(name.includes(month) || name.includes(month.substring(0, 3)))
-      );
+      const otherSheets = sheetNames.filter(name => {
+        const normalizedName = name.toLowerCase();
+        return !(normalizedName.includes(month.toLowerCase()) || 
+                normalizedName.includes(abbreviation) ||
+                name.includes(month) ||
+                name.includes(MONTH_ABBREVIATIONS[monthIndex]));
+      });
       
       if (otherSheets.length) {
         groups["Other Sheets"] = otherSheets;
       }
     } else if (filterType === "pattern" && selectedPattern) {
-      // Pattern-based filtering (existing logic)
       const matchingSheets = sheetNames.filter(name => 
         name.includes(selectedPattern)
       );
@@ -136,7 +166,6 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
         groups["Other Sheets"] = otherSheets;
       }
     } else {
-      // Default alphabetical grouping when no filter is selected
       for (let i = 0; i < 26; i++) {
         const letter = String.fromCharCode(65 + i);
         const sheetsStartingWithLetter = sheetNames.filter(name => 
@@ -367,25 +396,37 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
                     <CommandEmpty>No {filterType === "month" ? "months" : "patterns"} found</CommandEmpty>
                     <CommandGroup>
                       {filterType === "month" ? (
-                        months.map((month) => (
-                          <CommandItem
-                            key={month}
-                            onSelect={() => setSelectedPattern(month)}
-                            className="cursor-pointer"
-                          >
-                            {month}
-                          </CommandItem>
-                        ))
+                        months.length > 0 ? (
+                          months.map((month) => (
+                            <CommandItem
+                              key={month}
+                              onSelect={() => setSelectedPattern(month)}
+                              className="cursor-pointer"
+                            >
+                              {month}
+                            </CommandItem>
+                          ))
+                        ) : (
+                          <div className="px-2 py-3 text-sm text-muted-foreground">
+                            No month patterns detected in sheet names
+                          </div>
+                        )
                       ) : (
-                        patterns.map((pattern) => (
-                          <CommandItem
-                            key={pattern}
-                            onSelect={() => setSelectedPattern(pattern)}
-                            className="cursor-pointer"
-                          >
-                            {pattern}
-                          </CommandItem>
-                        ))
+                        patterns.length > 0 ? (
+                          patterns.map((pattern) => (
+                            <CommandItem
+                              key={pattern}
+                              onSelect={() => setSelectedPattern(pattern)}
+                              className="cursor-pointer"
+                            >
+                              {pattern}
+                            </CommandItem>
+                          ))
+                        ) : (
+                          <div className="px-2 py-3 text-sm text-muted-foreground">
+                            No patterns detected in sheet names
+                          </div>
+                        )
                       )}
                     </CommandGroup>
                   </Command>
