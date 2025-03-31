@@ -10,22 +10,17 @@ import {
 } from "@/components/ui/select";
 import { X } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Label } from "@/components/ui/label";
 
 interface ClientFilterProps {
   data: any[];
   onFilter: (client: string | null) => void;
   selectedClient: string | null;
-  onWeeklyTargetChange: (target: number) => void;
-  weeklyTarget: number;
 }
 
 const ClientFilter: React.FC<ClientFilterProps> = ({
   data,
   onFilter,
-  selectedClient,
-  onWeeklyTargetChange,
-  weeklyTarget
+  selectedClient
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -57,11 +52,6 @@ const ClientFilter: React.FC<ClientFilterProps> = ({
 
   const clearSearch = () => {
     setSearchTerm("");
-  };
-
-  const handleWeeklyTargetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(e.target.value) || 0;
-    onWeeklyTargetChange(value);
   };
 
   return (
@@ -109,18 +99,6 @@ const ClientFilter: React.FC<ClientFilterProps> = ({
             )}
           </SelectContent>
         </Select>
-      </div>
-      
-      <div className="flex items-center gap-3">
-        <Label htmlFor="weekly-target" className="whitespace-nowrap">Weekly Target (Unique Sent):</Label>
-        <Input
-          id="weekly-target"
-          type="number"
-          min="0"
-          value={weeklyTarget}
-          onChange={handleWeeklyTargetChange}
-          className="max-w-[150px]"
-        />
       </div>
     </div>
   );

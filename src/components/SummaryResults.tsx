@@ -14,8 +14,6 @@ interface SummaryResultsProps {
   setFilteredData: (data: DataRow[]) => void;
   viewType: "detailed" | "summary";
   setViewType: (type: "detailed" | "summary") => void;
-  weeklyTarget: number;
-  onWeeklyTargetChange: (target: number) => void;
 }
 
 const SummaryResults: React.FC<SummaryResultsProps> = ({
@@ -23,9 +21,7 @@ const SummaryResults: React.FC<SummaryResultsProps> = ({
   filteredData,
   setFilteredData,
   viewType,
-  setViewType,
-  weeklyTarget,
-  onWeeklyTargetChange
+  setViewType
 }) => {
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
 
@@ -37,16 +33,17 @@ const SummaryResults: React.FC<SummaryResultsProps> = ({
       return;
     }
 
-    const clientField = summaryData.length > 0 ? 
-      (Object.keys(summaryData[0]).find(key => 
-        key.toLowerCase().includes('client') && summaryData.some(row => row[key] === client)
-      ) || null) : null;
-
+    // Find the key that contains client information
+    const clientField = Object.keys(summaryData[0] || {}).find(key => 
+      key.toLowerCase().includes('client')
+    );
+    
     if (!clientField) {
       setFilteredData(summaryData);
       return;
     }
 
+    // Only show data for the selected client
     const filtered = summaryData.filter(row => row[clientField] === client);
     setFilteredData(filtered);
   };
@@ -94,8 +91,6 @@ const SummaryResults: React.FC<SummaryResultsProps> = ({
           data={summaryData}
           onFilter={handleClientFilter}
           selectedClient={selectedClient}
-          weeklyTarget={weeklyTarget}
-          onWeeklyTargetChange={onWeeklyTargetChange}
         />
         
         {filteredData.length > 0 ? (
@@ -103,7 +98,6 @@ const SummaryResults: React.FC<SummaryResultsProps> = ({
             <SheetSummary 
               data={summaryViewData} 
               detailedData={detailedViewData}
-              weeklyTarget={weeklyTarget}
               viewType={viewType}
               setViewType={setViewType}
             />

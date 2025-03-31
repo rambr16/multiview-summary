@@ -12,7 +12,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface SheetSummaryProps {
   data: any[];
-  weeklyTarget?: number;
   detailedData?: any[];
   viewType: "detailed" | "summary";
   setViewType: (type: "detailed" | "summary") => void;
@@ -20,7 +19,6 @@ interface SheetSummaryProps {
 
 const SheetSummary: React.FC<SheetSummaryProps> = ({ 
   data, 
-  weeklyTarget = 0, 
   detailedData = [], 
   viewType,
   setViewType
@@ -49,14 +47,7 @@ const SheetSummary: React.FC<SheetSummaryProps> = ({
     ? Object.keys(detailedData[0]).filter(col => !columnsToExclude.includes(col.toLowerCase()))
     : [];
     
-  // Check if we have unique_sent_count to calculate target difference
-  const hasUniqueSentCount = summaryColumns.includes('unique_sent_count');
-  
-  // Add target difference column if we have weekly target and unique_sent_count
-  const displaySummaryColumns = weeklyTarget > 0 && hasUniqueSentCount 
-    ? [...summaryColumns, "target_difference"] 
-    : summaryColumns;
-
+  const displaySummaryColumns = summaryColumns;
   const displayDetailedColumns = detailedColumns;
 
   return (
@@ -112,9 +103,7 @@ const SheetSummary: React.FC<SheetSummaryProps> = ({
                   <TableRow>
                     {displaySummaryColumns.map((column) => (
                       <TableHead key={column} className="whitespace-nowrap">
-                        {column === "target_difference" 
-                          ? "Weekly Target Difference" 
-                          : formatColumnName(column)}
+                        {formatColumnName(column)}
                       </TableHead>
                     ))}
                   </TableRow>
@@ -124,9 +113,7 @@ const SheetSummary: React.FC<SheetSummaryProps> = ({
                     <TableRow key={i}>
                       {displaySummaryColumns.map((column) => (
                         <TableCell key={`${i}-${column}`} className="whitespace-nowrap">
-                          {column === "target_difference" 
-                            ? calculateTargetDifference(row, weeklyTarget)
-                            : formatCellValue(row[column])}
+                          {formatCellValue(row[column])}
                         </TableCell>
                       ))}
                     </TableRow>
@@ -155,26 +142,6 @@ const formatCellValue = (value: any): string => {
   if (value === null || value === undefined) return '';
   if (typeof value === 'number') return Number(value).toLocaleString();
   return String(value);
-};
-
-// Helper function to calculate the difference between weekly target and current unique sent count
-const calculateTargetDifference = (row: any, weeklyTarget: number): string => {
-  if (!row.unique_sent_count && row.unique_sent_count !== 0) return 'N/A';
-  
-  const uniqueSent = typeof row.unique_sent_count === 'number' 
-    ? row.unique_sent_count 
-    : Number(row.unique_sent_count) || 0;
-  
-  const difference = weeklyTarget - uniqueSent;
-  const formattedDifference = Math.abs(difference).toLocaleString();
-  
-  if (difference > 0) {
-    return `Need ${formattedDifference} more`;
-  } else if (difference < 0) {
-    return `Exceeded by ${formattedDifference}`;
-  } else {
-    return 'Target met exactly';
-  }
 };
 
 export default SheetSummary;

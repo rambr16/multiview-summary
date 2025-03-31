@@ -18,7 +18,6 @@ const Index = () => {
   const [error, setError] = useState<string | null>(null);
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
   const [viewType, setViewType] = useState<"detailed" | "summary">("detailed");
-  const [weeklyTarget, setWeeklyTarget] = useState<number>(0);
   const { toast } = useToast();
 
   const handleFileProcessed = (wb: XLSX.WorkBook, sheets: string[]) => {
@@ -66,10 +65,6 @@ const Index = () => {
     }
   };
 
-  const handleWeeklyTargetChange = (target: number) => {
-    setWeeklyTarget(target);
-  };
-
   return (
     <div className="container mx-auto py-8 px-4 max-w-6xl">
       <h1 className="text-3xl font-bold text-center mb-8">
@@ -99,8 +94,6 @@ const Index = () => {
           setFilteredData={setFilteredData}
           viewType={viewType}
           setViewType={setViewType}
-          weeklyTarget={weeklyTarget}
-          onWeeklyTargetChange={handleWeeklyTargetChange}
         />
       )}
     </div>
