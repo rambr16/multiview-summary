@@ -34,8 +34,10 @@ const ClientFilter: React.FC<ClientFilterProps> = ({
     
     if (!clientCol) return [];
     
-    const uniqueClients = [...new Set(data.map(row => row[clientCol]))].filter(Boolean)
-      // Exclude names with "-summary" or "-Summary"
+    const uniqueClients = [...new Set(data.map(row => row[clientCol]))]
+      // First filter out nulls/undefined
+      .filter(Boolean)
+      // Then exclude names with "-summary" or "-Summary" (case-insensitive)
       .filter(client => !String(client).toLowerCase().includes('-summary'));
     
     return uniqueClients.sort();
@@ -44,7 +46,7 @@ const ClientFilter: React.FC<ClientFilterProps> = ({
   const filteredClients = useMemo(() => {
     if (!searchTerm) return clientNames;
     return clientNames.filter(client => 
-      client.toLowerCase().includes(searchTerm.toLowerCase())
+      String(client).toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [clientNames, searchTerm]);
 
