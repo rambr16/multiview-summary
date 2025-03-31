@@ -72,10 +72,48 @@ export const extractSheetData = (workbook: XLSX.WorkBook, selectedSheets: string
       }
     });
     
+    // Add the calculated fields
+    const uniqueSentCount = processedRow['unique_sent_count'] as number || 0;
+    const positiveReplyCount = processedRow['positive_reply_count'] as number || 0;
+    const replyCount = processedRow['reply_count'] as number || 0;
+    const bounceCount = processedRow['bounce_count'] as number || 0;
+    
+    // PRR vs RR - Positive Reply Count / Reply Count (percentage)
+    if (replyCount > 0) {
+      processedRow['prr_vs_rr'] = (positiveReplyCount / replyCount) * 100;
+    } else {
+      processedRow['prr_vs_rr'] = 0;
+    }
+    
+    // RR - Reply Count / Unique Sent Count (percentage)
+    if (uniqueSentCount > 0) {
+      processedRow['rr'] = (replyCount / uniqueSentCount) * 100;
+    } else {
+      processedRow['rr'] = 0;
+    }
+    
+    // Bounce - Bounce Count / Unique Sent Count (percentage)
+    if (uniqueSentCount > 0) {
+      processedRow['bounce_rate'] = (bounceCount / uniqueSentCount) * 100;
+    } else {
+      processedRow['bounce_rate'] = 0;
+    }
+    
+    // Unique leads / Positive - Unique Sent Count / Positive Reply Count
+    if (positiveReplyCount > 0) {
+      processedRow['unique_leads_per_positive'] = uniqueSentCount / positiveReplyCount;
+    } else {
+      processedRow['unique_leads_per_positive'] = 'no positive reply';
+    }
+    
     return processedRow;
   });
   
-  return processedData;
+  // Filter to only include rows where unique_sent_count >= 1
+  return processedData.filter(row => {
+    const uniqueSentCount = row['unique_sent_count'] as number;
+    return typeof uniqueSentCount === 'number' && uniqueSentCount >= 1;
+  });
 };
 
 export const generateSummaryView = (filteredData: DataRow[]): DataRow[] => {
@@ -94,10 +132,43 @@ export const generateSummaryView = (filteredData: DataRow[]): DataRow[] => {
     const summary: DataRow = {};
     numericColumns.forEach(col => {
       const sum = filteredData.reduce((acc, row) => {
+        // Skip unique_leads_per_positive when it's "no positive reply"
+        if (col === 'unique_leads_per_positive' && row[col] === 'no positive reply') {
+          return acc;
+        }
+        
         const val = typeof row[col] === 'number' ? row[col] : Number(row[col]) || 0;
         return acc + (val as number);
       }, 0);
-      summary[col] = sum;
+      
+      // For calculated percentage fields, we need to recalculate rather than sum
+      if (col === 'prr_vs_rr') {
+        const totalPositiveReply = filteredData.reduce((acc, row) => 
+          acc + (Number(row['positive_reply_count']) || 0), 0);
+        const totalReply = filteredData.reduce((acc, row) => 
+          acc + (Number(row['reply_count']) || 0), 0);
+        summary[col] = totalReply > 0 ? (totalPositiveReply / totalReply) * 100 : 0;
+      } else if (col === 'rr') {
+        const totalReply = filteredData.reduce((acc, row) => 
+          acc + (Number(row['reply_count']) || 0), 0);
+        const totalUniqueSent = filteredData.reduce((acc, row) => 
+          acc + (Number(row['unique_sent_count']) || 0), 0);
+        summary[col] = totalUniqueSent > 0 ? (totalReply / totalUniqueSent) * 100 : 0;
+      } else if (col === 'bounce_rate') {
+        const totalBounce = filteredData.reduce((acc, row) => 
+          acc + (Number(row['bounce_count']) || 0), 0);
+        const totalUniqueSent = filteredData.reduce((acc, row) => 
+          acc + (Number(row['unique_sent_count']) || 0), 0);
+        summary[col] = totalUniqueSent > 0 ? (totalBounce / totalUniqueSent) * 100 : 0;
+      } else if (col === 'unique_leads_per_positive') {
+        const totalUniqueSent = filteredData.reduce((acc, row) => 
+          acc + (Number(row['unique_sent_count']) || 0), 0);
+        const totalPositiveReply = filteredData.reduce((acc, row) => 
+          acc + (Number(row['positive_reply_count']) || 0), 0);
+        summary[col] = totalPositiveReply > 0 ? totalUniqueSent / totalPositiveReply : 'no positive reply';
+      } else {
+        summary[col] = sum;
+      }
     });
     return [summary];
   } else {
@@ -121,9 +192,36 @@ export const generateSummaryView = (filteredData: DataRow[]): DataRow[] => {
       // Sum numeric columns
       numericColumns.forEach(col => {
         if (col.toLowerCase().includes('client')) return;
+        
+        // Skip special fields that need to be calculated
+        if (['prr_vs_rr', 'rr', 'bounce_rate', 'unique_leads_per_positive'].includes(col)) {
+          return;
+        }
+        
         const val = typeof row[col] === 'number' ? row[col] : Number(row[col]) || 0;
         clientGroups[client][col] = (clientGroups[client][col] as number) + (val as number);
       });
+    });
+    
+    // Calculate the derived fields for each client group
+    Object.keys(clientGroups).forEach(client => {
+      const group = clientGroups[client];
+      
+      // PRR vs RR
+      const positiveReply = Number(group['positive_reply_count']) || 0;
+      const reply = Number(group['reply_count']) || 0;
+      group['prr_vs_rr'] = reply > 0 ? (positiveReply / reply) * 100 : 0;
+      
+      // RR
+      const uniqueSent = Number(group['unique_sent_count']) || 0;
+      group['rr'] = uniqueSent > 0 ? (reply / uniqueSent) * 100 : 0;
+      
+      // Bounce rate
+      const bounce = Number(group['bounce_count']) || 0;
+      group['bounce_rate'] = uniqueSent > 0 ? (bounce / uniqueSent) * 100 : 0;
+      
+      // Unique leads per positive
+      group['unique_leads_per_positive'] = positiveReply > 0 ? uniqueSent / positiveReply : 'no positive reply';
     });
     
     return Object.values(clientGroups);
