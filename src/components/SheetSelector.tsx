@@ -1,16 +1,11 @@
+
 import React, { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, X, Filter, CheckSquare, Square, ChevronDown, ChevronUp } from "lucide-react";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { Search, X, Filter, CheckSquare, Square, ChevronDown, ChevronUp, Calendar } from "lucide-react";
 import {
   Command,
   CommandEmpty,
@@ -34,6 +29,11 @@ interface SheetSelectorProps {
   isLoading: boolean;
 }
 
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June", 
+  "July", "August", "September", "October", "November", "December"
+];
+
 const SheetSelector: React.FC<SheetSelectorProps> = ({ 
   sheetNames,
   selectedSheets,
@@ -44,6 +44,7 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPattern, setSelectedPattern] = useState<string | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
+  const [filterType, setFilterType] = useState<"pattern" | "month">("month");
 
   const patterns = useMemo(() => {
     if (!sheetNames.length) return [];
@@ -80,10 +81,45 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
     return allPatterns;
   }, [sheetNames]);
 
+  const months = useMemo(() => {
+    if (!sheetNames.length) return [];
+    
+    const foundMonths = new Set<string>();
+    
+    sheetNames.forEach(name => {
+      MONTHS.forEach(month => {
+        if (name.includes(month) || name.includes(month.substring(0, 3))) {
+          foundMonths.add(month);
+        }
+      });
+    });
+    
+    return Array.from(foundMonths);
+  }, [sheetNames]);
+
   const groupedSheets = useMemo(() => {
     const groups: Record<string, string[]> = {};
     
-    if (selectedPattern) {
+    if (filterType === "month" && selectedPattern) {
+      // Group by the selected month
+      const month = selectedPattern;
+      const matchingSheets = sheetNames.filter(name => 
+        name.includes(month) || name.includes(month.substring(0, 3))
+      );
+      
+      if (matchingSheets.length) {
+        groups[`${month}`] = matchingSheets;
+      }
+      
+      const otherSheets = sheetNames.filter(name => 
+        !(name.includes(month) || name.includes(month.substring(0, 3)))
+      );
+      
+      if (otherSheets.length) {
+        groups["Other Sheets"] = otherSheets;
+      }
+    } else if (filterType === "pattern" && selectedPattern) {
+      // Pattern-based filtering (existing logic)
       const matchingSheets = sheetNames.filter(name => 
         name.includes(selectedPattern)
       );
@@ -100,7 +136,8 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
         groups["Other Sheets"] = otherSheets;
       }
     } else {
-      for (let i = 0; i < 26; i++) {
+      // Default alphabetical grouping when no filter is selected
+      for (let i =: 0; i < 26; i++) {
         const letter = String.fromCharCode(65 + i);
         const sheetsStartingWithLetter = sheetNames.filter(name => 
           name.toUpperCase().startsWith(letter)
@@ -141,7 +178,7 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
     }
     
     return groups;
-  }, [sheetNames, searchTerm, selectedPattern]);
+  }, [sheetNames, searchTerm, selectedPattern, filterType]);
 
   const filterGroups = Object.keys(groupedSheets);
   
@@ -239,6 +276,11 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
     );
   };
 
+  const toggleFilterType = () => {
+    setFilterType(prev => prev === "pattern" ? "month" : "pattern");
+    setSelectedPattern(null);
+  };
+
   return (
     <Card className="mb-6">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
@@ -291,44 +333,77 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
               )}
             </div>
             
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="flex items-center gap-1.5">
-                  <Filter className="h-4 w-4" />
-                  <span className="hidden sm:inline">Filter</span>
-                  {selectedPattern && <Badge variant="secondary" className="ml-1">{selectedPattern}</Badge>}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64 p-0" align="end">
-                <Command>
-                  <CommandInput placeholder="Search patterns..." />
-                  <CommandEmpty>No patterns found</CommandEmpty>
-                  <CommandGroup>
-                    {patterns.map((pattern) => (
-                      <CommandItem
-                        key={pattern}
-                        onSelect={() => setSelectedPattern(pattern)}
-                        className="cursor-pointer"
-                      >
-                        {pattern}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </Command>
-                {selectedPattern && (
-                  <div className="p-2 border-t">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={clearPatternFilter}
-                      className="w-full"
-                    >
-                      Clear Filter
-                    </Button>
-                  </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={toggleFilterType}
+                className="flex items-center gap-1"
+              >
+                {filterType === "month" ? (
+                  <>
+                    <Calendar className="h-4 w-4" />
+                    <span className="hidden sm:inline">Month Filter</span>
+                  </>
+                ) : (
+                  <>
+                    <Filter className="h-4 w-4" />
+                    <span className="hidden sm:inline">Pattern Filter</span>
+                  </>
                 )}
-              </PopoverContent>
-            </Popover>
+              </Button>
+              
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="flex items-center gap-1.5">
+                    {filterType === "month" ? <Calendar className="h-4 w-4" /> : <Filter className="h-4 w-4" />}
+                    <span className="hidden sm:inline">{filterType === "month" ? "Month" : "Filter"}</span>
+                    {selectedPattern && <Badge variant="secondary" className="ml-1">{selectedPattern}</Badge>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-0" align="end">
+                  <Command>
+                    <CommandInput placeholder={filterType === "month" ? "Search months..." : "Search patterns..."} />
+                    <CommandEmpty>No {filterType === "month" ? "months" : "patterns"} found</CommandEmpty>
+                    <CommandGroup>
+                      {filterType === "month" ? (
+                        months.map((month) => (
+                          <CommandItem
+                            key={month}
+                            onSelect={() => setSelectedPattern(month)}
+                            className="cursor-pointer"
+                          >
+                            {month}
+                          </CommandItem>
+                        ))
+                      ) : (
+                        patterns.map((pattern) => (
+                          <CommandItem
+                            key={pattern}
+                            onSelect={() => setSelectedPattern(pattern)}
+                            className="cursor-pointer"
+                          >
+                            {pattern}
+                          </CommandItem>
+                        ))
+                      )}
+                    </CommandGroup>
+                  </Command>
+                  {selectedPattern && (
+                    <div className="p-2 border-t">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={clearPatternFilter}
+                        className="w-full"
+                      >
+                        Clear Filter
+                      </Button>
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
         </div>
         
