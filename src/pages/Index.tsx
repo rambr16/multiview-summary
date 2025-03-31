@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +12,7 @@ import EmptyState from "@/components/EmptyState";
 import AppsScriptInfo from "@/components/AppsScriptInfo";
 import ClientFilter from "@/components/ClientFilter";
 import { useToast } from "@/hooks/use-toast";
-import { FileDown, Upload, Search, Filter, ChevronDown, ChevronUp } from "lucide-react";
+import { FileDown, Upload, Search, Filter, ChevronDown, ChevronUp, X } from "lucide-react";
 import * as XLSX from 'xlsx';
 import {
   Accordion,
@@ -38,13 +37,13 @@ const Index = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [viewType, setViewType] = useState<"detailed" | "summary">("detailed");
+  const [weeklyTarget, setWeeklyTarget] = useState<number>(0);
   const { toast } = useToast();
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Check if the file is a CSV or Excel file
     const fileExt = file.name.split('.').pop()?.toLowerCase();
     if (!(fileExt === 'csv' || fileExt === 'xlsx' || fileExt === 'xls')) {
       setError("Please upload a CSV or Excel file (.csv, .xlsx, .xls)");
@@ -61,7 +60,6 @@ const Index = () => {
       const wb = XLSX.read(data);
       setWorkbook(wb);
       
-      // Get all sheet names from the workbook
       const sheets = wb.SheetNames;
       
       setSheetNames(sheets);
@@ -119,27 +117,21 @@ const Index = () => {
       
       const allData: DataRow[] = [];
       
-      // Process each selected sheet
       for (const sheetName of selectedSheets) {
         const worksheet = workbook.Sheets[sheetName];
         
-        // Convert the worksheet to JSON
         const sheetData = XLSX.utils.sheet_to_json<DataRow>(worksheet, { defval: '' });
         
-        // Filter out empty rows and add to the collection
         const validRows = sheetData.filter(row => {
-          // Check if any key has a non-empty value
           return Object.values(row).some(val => val !== '');
         });
         
         allData.push(...validRows);
       }
       
-      // Process the data to ensure proper types
       const processedData = allData.map(row => {
         const processedRow: DataRow = {};
         
-        // Convert numeric strings to numbers for specific fields
         const numericFields = [
           'sent_count', 'unique_sent_count', 'positive_reply_count', 
           'reply_count', 'bounce_count'
@@ -179,7 +171,6 @@ const Index = () => {
       return;
     }
 
-    // Find client field name since it might vary
     const clientField = summaryData.length > 0 ? 
       (Object.keys(summaryData[0]).find(key => 
         key.toLowerCase().includes('client') && summaryData.some(row => row[key] === client)
@@ -197,18 +188,16 @@ const Index = () => {
   const getSummaryView = () => {
     if (!filteredData.length) return [];
 
-    // Find numeric columns to summarize
     const columns = Object.keys(filteredData[0]);
     const numericColumns = columns.filter(col => 
-      typeof filteredData[0][col] === 'number' || 
-      !isNaN(Number(filteredData[0][col]))
+      !['total_count', 'drafted_count'].includes(col) &&
+      (typeof filteredData[0][col] === 'number' || 
+       !isNaN(Number(filteredData[0][col])))
     );
 
-    // Group by client if possible
     const clientField = columns.find(col => col.toLowerCase().includes('client')) || null;
     
     if (!clientField) {
-      // Just aggregate all numeric values
       const summary: DataRow = { total_records: filteredData.length };
       numericColumns.forEach(col => {
         const sum = filteredData.reduce((acc, row) => {
@@ -219,7 +208,6 @@ const Index = () => {
       });
       return [summary];
     } else {
-      // Group by client
       const clientGroups: { [key: string]: DataRow } = {};
       
       filteredData.forEach(row => {
@@ -253,18 +241,19 @@ const Index = () => {
     return getSummaryView();
   }, [filteredData, viewType]);
 
+  const handleWeeklyTargetChange = (target: number) => {
+    setWeeklyTarget(target);
+  };
+
   const downloadCsv = () => {
     if (summaryViewData.length === 0) return;
     
     try {
-      // Create a new workbook for export
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.json_to_sheet(summaryViewData);
       
-      // Add the worksheet to the workbook
       XLSX.utils.book_append_sheet(wb, ws, "Summary");
       
-      // Generate and download the file
       XLSX.writeFile(wb, "workbook_summary.csv");
       
       toast({
@@ -453,11 +442,16 @@ const Index = () => {
               onFilter={handleClientFilter}
               viewType={viewType}
               onViewTypeChange={setViewType}
+              weeklyTarget={weeklyTarget}
+              onWeeklyTargetChange={handleWeeklyTargetChange}
             />
             
             {filteredData.length > 0 ? (
               <div className="mt-6">
-                <SheetSummary data={summaryViewData} />
+                <SheetSummary 
+                  data={summaryViewData} 
+                  weeklyTarget={weeklyTarget}
+                />
                 <div className="mt-4 text-sm text-right text-muted-foreground">
                   {`Showing ${summaryViewData.length} ${viewType === "summary" ? "summarized" : ""} ${summaryViewData.length === 1 ? "record" : "records"}`}
                 </div>
