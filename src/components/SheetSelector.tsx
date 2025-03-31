@@ -51,6 +51,7 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
   const [filterType, setFilterType] = useState<"pattern" | "month">("month");
 
+  // Find patterns in sheet names (dates, common prefixes, etc.)
   const patterns = useMemo(() => {
     if (!sheetNames.length) return [];
     
@@ -86,6 +87,7 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
     return allPatterns;
   }, [sheetNames]);
 
+  // Find months mentioned in sheet names
   const months = useMemo(() => {
     if (!sheetNames.length) return [];
     
@@ -102,37 +104,25 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
           foundMonths.add(month);
         }
       });
-      
-      const monthPattern = /\d+[-_\s](jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|january|february|march|april|may|june|july|august|september|october|november|december)/i;
-      const monthMatch = normalizedName.match(monthPattern);
-      if (monthMatch && monthMatch[1]) {
-        const matchedPart = monthMatch[1].toLowerCase();
-        MONTHS.forEach((month, index) => {
-          if (month.toLowerCase().startsWith(matchedPart) || 
-              MONTH_ABBREVIATIONS[index].toLowerCase() === matchedPart) {
-            foundMonths.add(month);
-          }
-        });
-      }
     });
     
     return Array.from(foundMonths);
   }, [sheetNames]);
 
+  // Group sheets based on selected filter
   const groupedSheets = useMemo(() => {
     const groups: Record<string, string[]> = {};
     
     if (filterType === "month" && selectedPattern) {
       const month = selectedPattern;
+      // Find the month index to get its abbreviation
       const monthIndex = MONTHS.indexOf(month);
       const abbreviation = monthIndex >= 0 ? MONTH_ABBREVIATIONS[monthIndex].toLowerCase() : "";
       
       const matchingSheets = sheetNames.filter(name => {
         const normalizedName = name.toLowerCase();
         return normalizedName.includes(month.toLowerCase()) || 
-               normalizedName.includes(abbreviation) ||
-               name.includes(month) ||
-               name.includes(MONTH_ABBREVIATIONS[monthIndex]);
+               normalizedName.includes(abbreviation);
       });
       
       if (matchingSheets.length) {
@@ -142,15 +132,14 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
       const otherSheets = sheetNames.filter(name => {
         const normalizedName = name.toLowerCase();
         return !(normalizedName.includes(month.toLowerCase()) || 
-                normalizedName.includes(abbreviation) ||
-                name.includes(month) ||
-                name.includes(MONTH_ABBREVIATIONS[monthIndex]));
+                normalizedName.includes(abbreviation));
       });
       
       if (otherSheets.length) {
         groups["Other Sheets"] = otherSheets;
       }
     } else if (filterType === "pattern" && selectedPattern) {
+      // Pattern-based filtering
       const matchingSheets = sheetNames.filter(name => 
         name.includes(selectedPattern)
       );
@@ -167,6 +156,7 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
         groups["Other Sheets"] = otherSheets;
       }
     } else {
+      // Default alphabetical grouping when no filter is selected
       for (let i = 0; i < 26; i++) {
         const letter = String.fromCharCode(65 + i);
         const sheetsStartingWithLetter = sheetNames.filter(name => 
@@ -195,6 +185,7 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
       }
     }
     
+    // Apply search term filter if present
     if (searchTerm) {
       Object.keys(groups).forEach(groupName => {
         groups[groupName] = groups[groupName].filter(sheet => 
@@ -212,12 +203,14 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
 
   const filterGroups = Object.keys(groupedSheets);
   
+  // Expand the first group by default when groups change
   useEffect(() => {
     if (filterGroups.length > 0 && expandedGroups.length === 0) {
       setExpandedGroups([filterGroups[0]]);
     }
   }, [filterGroups, expandedGroups]);
   
+  // Count total sheets after filtering
   const totalFilteredSheets = useMemo(() => {
     return Object.values(groupedSheets).reduce(
       (total, sheets) => total + sheets.length, 
@@ -225,6 +218,7 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
     );
   }, [groupedSheets]);
 
+  // Count selected sheets after filtering
   const totalSelectedFilteredSheets = useMemo(() => {
     let count = 0;
     Object.values(groupedSheets).forEach(sheets => {
@@ -237,6 +231,7 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
     return count;
   }, [groupedSheets, selectedSheets]);
 
+  // Handle individual sheet selection
   const handleSheetSelection = (sheetName: string) => {
     const newSelection = selectedSheets.includes(sheetName)
       ? selectedSheets.filter(name => name !== sheetName)
@@ -245,6 +240,7 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
     onSheetsChange(newSelection);
   };
 
+  // Handle select/deselect all sheets
   const handleSelectAll = () => {
     if (totalSelectedFilteredSheets === totalFilteredSheets && totalFilteredSheets > 0) {
       const sheetsToRemove = new Set();
@@ -267,6 +263,7 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
     }
   };
 
+  // Handle select/deselect all sheets in a group
   const handleGroupSelectAll = (groupName: string) => {
     const groupSheets = groupedSheets[groupName] || [];
     
@@ -311,13 +308,17 @@ const SheetSelector: React.FC<SheetSelectorProps> = ({
     setSelectedPattern(null);
   };
 
-  // Handle month selection safely
+  // Safely handle month selection
   const handleSelectMonth = (month: string) => {
     try {
-      setSelectedPattern(month);
+      if (MONTHS.includes(month)) {
+        setSelectedPattern(month);
+      } else {
+        console.error("Invalid month:", month);
+        setSelectedPattern(null);
+      }
     } catch (error) {
       console.error("Error selecting month:", error);
-      // Reset to avoid blank page
       setSelectedPattern(null);
     }
   };
