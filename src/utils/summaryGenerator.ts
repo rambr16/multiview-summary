@@ -74,7 +74,14 @@ const generateClientSummaries = (
         return;
       }
       
-      const val = typeof row[col] === 'number' ? row[col] : Number(row[col]) || 0;
+      // Ensure we're correctly handling the positive reply count
+      let val = 0;
+      if (col.toLowerCase() === 'positive_reply_count') {
+        val = typeof row[col] === 'number' ? row[col] : Number(row[col]) || 0;
+      } else {
+        val = typeof row[col] === 'number' ? row[col] : Number(row[col]) || 0;
+      }
+      
       clientGroups[client][col] = (clientGroups[client][col] as number) + (val as number);
     });
   });

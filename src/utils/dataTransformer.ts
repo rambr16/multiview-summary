@@ -1,3 +1,4 @@
+
 import * as XLSX from 'xlsx';
 import { DataRow } from './fileTypes';
 
@@ -69,7 +70,10 @@ const processRowData = (data: DataRow[]): DataRow[] => {
         return;
       }
       
-      if (numericFields.includes(lowerKey) && typeof row[key] === 'string') {
+      // Make the check case-insensitive by comparing with lowercase versions
+      const isNumericField = numericFields.some(field => field.toLowerCase() === lowerKey);
+      
+      if (isNumericField && typeof row[key] === 'string') {
         const numValue = parseFloat(row[key] as string);
         processedRow[key] = isNaN(numValue) ? 0 : numValue;
       } else {
