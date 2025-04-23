@@ -24,7 +24,8 @@ const SummaryResults: React.FC<SummaryResultsProps> = ({
   setFilteredData,
   viewType,
   selectedClient,
-  setSelectedClient
+  setSelectedClient,
+  setViewType,
 }) => {
   const handleClientFilter = (client: string | null) => {
     setSelectedClient(client);
@@ -75,9 +76,12 @@ const SummaryResults: React.FC<SummaryResultsProps> = ({
           selectedClient={selectedClient}
         />
         
-        <ResultsDisplay 
-          filteredData={filteredData} 
-          viewType={viewType} 
+        {/* Pass selectedClient down to SheetSummary */}
+        <SheetSummary 
+          data={filteredData} 
+          viewType={viewType}
+          selectedClient={selectedClient}
+          fullData={summaryData}
         />
       </CardContent>
     </Card>
@@ -85,3 +89,4 @@ const SummaryResults: React.FC<SummaryResultsProps> = ({
 };
 
 export default SummaryResults;
+

@@ -2,16 +2,21 @@
 import React, { useMemo } from "react";
 import SummaryCards from "./summary/SummaryCards";
 import DataTable from "./summary/DataTable";
-import { DataRow } from "@/utils/fileTypes";
+import { DataRow, generateSummaryView } from "@/utils/fileProcessor";
+import { getCardHighlightColor, formatColumnName, formatMetric } from "./summary/formatters";
 
 interface SheetSummaryProps {
   data: any[];
   viewType: "detailed" | "summary";
+  selectedClient?: string | null;
+  fullData?: DataRow[];
 }
 
 const SheetSummary: React.FC<SheetSummaryProps> = ({ 
   data, 
-  viewType 
+  viewType,
+  selectedClient = null,
+  fullData = [],
 }) => {
   if (!data || data.length === 0) return (
     <div className="py-8 text-center text-gray-500">
@@ -103,6 +108,22 @@ const SheetSummary: React.FC<SheetSummaryProps> = ({
     return totals;
   }, [data, displayColumns]);
 
+  // Derive client-wise mini summaries only when viewing All Clients,
+  // and there is a client field present.
+  const clientField = useMemo(() => {
+    if (!fullData.length) return null;
+    return Object.keys(fullData[0]).find(key => key.toLowerCase().includes('client'));
+  }, [fullData]);
+
+  const clientSummaries = useMemo(() => {
+    if (!clientField || selectedClient) return [];
+    // Use generateSummaryView to group by client
+    // Safe: Only per-client when in "All Clients" mode (selectedClient === null)
+    return generateSummaryView(fullData)
+      .filter(row => typeof row[clientField] === 'string') // Only proper client rows
+      .filter(row => String(row[clientField]).length > 0 && !String(row[clientField]).includes(" - Summary"));
+  }, [selectedClient, fullData, clientField]);
+
   // Determine which columns are numeric for summary display
   const numericColumns = Object.keys(summaryTotals);
   const hasNumericColumns = numericColumns.length > 0;
@@ -118,6 +139,37 @@ const SheetSummary: React.FC<SheetSummaryProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* When All Clients filter is active, show client-wise summaries */}
+      {clientField && !selectedClient && clientSummaries.length > 0 && (
+        <div className="space-y-1 mb-2">
+          <h3 className="text-lg font-medium mb-1">Client Summaries</h3>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {clientSummaries.map((row, i) => (
+              <div
+                key={String(row[clientField]) || i}
+                className={`rounded-md shadow border p-4 flex flex-col gap-1 ${getCardHighlightColor('client', String(row[clientField]))}`}
+              >
+                <div className="font-semibold pb-1 text-primary">{String(row[clientField])}</div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1">
+                  {summaryCardColumns.map(col => 
+                    typeof row[col] !== 'undefined' && col !== clientField && (
+                      <div key={col} className="text-xs flex flex-col min-w-[112px]">
+                        <span className="text-muted-foreground text-[0.82em]">
+                          {formatColumnName(col)}
+                        </span>
+                        <span className="font-mono text-[1em] font-bold">
+                          {formatMetric(col, row[col])}
+                        </span>
+                      </div>
+                    )
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {hasNumericColumns && (
         <SummaryCards 
           summaryTotals={summaryTotals} 
@@ -136,3 +188,4 @@ const SheetSummary: React.FC<SheetSummaryProps> = ({
 };
 
 export default SheetSummary;
+
