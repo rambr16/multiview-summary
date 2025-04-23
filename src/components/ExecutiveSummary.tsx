@@ -53,30 +53,47 @@ const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({ summaryData, amData
     if (!clientField) return [];
 
     // Group rows by client_name, excluding any " - Summary" or empty client
-    const summaryRows: Record<string, DataRow> = {};
+    const clientGroups: Record<string, DataRow> = {};
+    
     summaryData.forEach(row => {
       const client = String(row[clientField]);
       if (client && !client.includes(" - Summary") && client !== "") {
-        summaryRows[client] = row;
+        // Initialize client entry if first time seeing this client
+        if (!clientGroups[client]) {
+          clientGroups[client] = {
+            [clientField]: client,
+            sent_count: 0,
+            unique_sent_count: 0,
+            positive_reply_count: 0,
+            reply_count: 0,
+            bounce_count: 0,
+          };
+        }
+        
+        // Aggregate numeric values
+        ["sent_count", "unique_sent_count", "positive_reply_count", "reply_count", "bounce_count"].forEach(field => {
+          if (typeof row[field] === "number") {
+            clientGroups[client][field] = (clientGroups[client][field] || 0) + row[field];
+          } else if (row[field] && !isNaN(Number(row[field]))) {
+            clientGroups[client][field] = (clientGroups[client][field] || 0) + Number(row[field]);
+          }
+        });
       }
     });
 
-    // For each unique client_name, get the AM info (AM row with matching client_name)
-    const results = Object.keys(summaryRows).map(clientName => {
-      const summary = summaryRows[clientName];
+    // Process each client's data and add calculated fields
+    return Object.keys(clientGroups).map(clientName => {
+      const summary = clientGroups[clientName];
 
       // Find AM data by client_name (strict match)
       const am = amData.find(a => String(a["client_name"]).trim() === clientName);
 
       // Gather stats for row
-      const sent = summary["sent_count"] ?? 0;
-      const uniqueSent = summary["unique_sent_count"] ?? 0;
-      const positive = summary["positive_reply_count"] ?? 0;
-      const reply = summary["reply_count"] ?? 0;
-      const prr_vs_rr = summary["prr_vs_rr"] ?? 0;
-      const rr = summary["rr"] ?? 0;
-      const bounce = summary["bounce_count"] ?? 0;
-      const bounceRate = summary["bounce_rate"] ?? 0;
+      const sent = Number(summary["sent_count"] || 0);
+      const uniqueSent = Number(summary["unique_sent_count"] || 0);
+      const positive = Number(summary["positive_reply_count"] || 0);
+      const reply = Number(summary["reply_count"] || 0);
+      const bounce = Number(summary["bounce_count"] || 0);
 
       // AM values (fallback to empty)
       const target = am && Number(am["Target"]) ? Number(am["Target"]) : 0;
@@ -84,13 +101,22 @@ const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({ summaryData, amData
       const weekendSendout = am ? am["Weekend sendout"] : "";
 
       // Calculated values
-      const targetPercent = target > 0 ? (Number(uniqueSent) / target) * 100 : 0;
+      const targetPercent = target > 0 ? (uniqueSent / target) * 100 : 0;
       const targetPercentStr = target > 0 ? `${targetPercent.toFixed(2)}%` : "";
 
-      const uniqueSentPerPositive =
-        (typeof positive === "number" || Number(positive) > 0)
-          ? (uniqueSent && Number(positive) ? (Number(uniqueSent) / Number(positive)).toFixed(2) : "no positive")
-          : "no positive";
+      // PRR vs RR
+      const prr_vs_rr = reply > 0 ? (positive / reply) * 100 : 0;
+
+      // RR - Reply Rate (reply count / unique sent count)
+      const rr = uniqueSent > 0 ? (reply / uniqueSent) * 100 : 0;
+
+      // Bounce Rate
+      const bounce_rate = uniqueSent > 0 ? (bounce / uniqueSent) * 100 : 0;
+
+      // Unique sent per positive
+      const unique_sent_per_positives = positive > 0 
+        ? (uniqueSent / positive).toFixed(2) 
+        : "no positive";
 
       return {
         client_name: clientName,
@@ -102,19 +128,14 @@ const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({ summaryData, amData
         AM: amName,
         "Weekend sendout": weekendSendout,
         positive_reply_count: positive,
-        unique_sent_per_positives: uniqueSentPerPositive,
+        unique_sent_per_positives,
         prr_vs_rr,
         reply_count: reply,
         rr,
         bounce_count: bounce,
-        bounce_rate: bounceRate,
+        bounce_rate,
       };
     });
-
-    // Sort: first by Target %, descending
-    results.sort((a, b) => b.targetPercentValue - a.targetPercentValue);
-
-    return results;
   }, [summaryData, amData, clientField]);
 
   if (!clientField || executiveRows.length === 0) return null;
@@ -164,10 +185,18 @@ const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({ summaryData, amData
                 // "no positive" color for unique_sent/positives, PRR etc
                 if (h.key === "unique_sent_per_positives" && row[h.key] === "no positive") {
                   return (
-                    <td key={h.key} className="bg-red-100 text-red-600">{row[h.key]}</td>
+                    <td key={h.key} className={`${getCellClass(true)} bg-red-100 text-red-600`}>{row[h.key]}</td>
                   );
                 }
-                // Others: highlight PRR and RR and bounce% as per your logic (red if low/high, green if good)
+                // Format percentage values
+                if (["prr_vs_rr", "rr", "bounce_rate"].includes(h.key)) {
+                  return (
+                    <td key={h.key} className={getCellClass(true)}>
+                      {typeof row[h.key] === "number" ? `${row[h.key].toFixed(2)}%` : row[h.key]}
+                    </td>
+                  );
+                }
+                // Others: regular formatting
                 return (
                   <td key={h.key} className={getCellClass(true)}>
                     {typeof row[h.key] === "number"
