@@ -1,4 +1,3 @@
-
 import * as XLSX from 'xlsx';
 import { DataRow } from './fileTypes';
 
@@ -41,11 +40,7 @@ export const extractSheetData = (workbook: XLSX.WorkBook, selectedSheets: string
   
   const processedData = processRowData(allData);
   
-  // Filter to only include rows where unique_sent_count >= 1
-  return processedData.filter(row => {
-    const uniqueSentCount = row['unique_sent_count'] as number;
-    return typeof uniqueSentCount === 'number' && uniqueSentCount >= 1;
-  });
+  return processedData;
 };
 
 const processRowData = (data: DataRow[]): DataRow[] => {
