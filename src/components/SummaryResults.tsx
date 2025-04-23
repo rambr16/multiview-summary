@@ -7,6 +7,7 @@ import { DataRow } from "@/utils/fileProcessor";
 import SheetSummary from "@/components/SheetSummary";
 import DownloadButton from "@/components/DownloadButton";
 import ResultsDisplay from "@/components/ResultsDisplay";
+import ExecutiveSummary from "@/components/ExecutiveSummary";
 
 interface SummaryResultsProps {
   summaryData: DataRow[];
@@ -16,6 +17,7 @@ interface SummaryResultsProps {
   setViewType: (type: "detailed" | "summary") => void;
   selectedClient: string | null;
   setSelectedClient: (client: string | null) => void;
+  amData?: DataRow[]; // NEW: amData may be undefined
 }
 
 const SummaryResults: React.FC<SummaryResultsProps> = ({
@@ -26,6 +28,7 @@ const SummaryResults: React.FC<SummaryResultsProps> = ({
   selectedClient,
   setSelectedClient,
   setViewType,
+  amData = [],
 }) => {
   const handleClientFilter = (client: string | null) => {
     setSelectedClient(client);
@@ -34,17 +37,14 @@ const SummaryResults: React.FC<SummaryResultsProps> = ({
       setFilteredData(summaryData);
       return;
     }
-
     // Find the key that contains client information
     const clientField = Object.keys(summaryData[0] || {}).find(key => 
       key.toLowerCase().includes('client')
     );
-    
     if (!clientField) {
       setFilteredData(summaryData);
       return;
     }
-
     // Only show data for the selected client
     const filtered = summaryData.filter(row => row[clientField] === client);
     setFilteredData(filtered);
@@ -70,13 +70,16 @@ const SummaryResults: React.FC<SummaryResultsProps> = ({
         />
       </CardHeader>
       <CardContent>
+        {amData.length > 0 && !selectedClient && (
+          <div className="mb-8">
+            <ExecutiveSummary summaryData={summaryData} amData={amData} />
+          </div>
+        )}
         <ClientFilter 
           data={summaryData}
           onFilter={handleClientFilter}
           selectedClient={selectedClient}
         />
-        
-        {/* Pass selectedClient down to SheetSummary */}
         <SheetSummary 
           data={filteredData} 
           viewType={viewType}
@@ -89,4 +92,3 @@ const SummaryResults: React.FC<SummaryResultsProps> = ({
 };
 
 export default SummaryResults;
-
