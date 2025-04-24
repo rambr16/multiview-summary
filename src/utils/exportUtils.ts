@@ -76,39 +76,41 @@ export const downloadCsv = (data: DataRow[], selectedClient: string | null = nul
   const clientField = Object.keys(data[0] || {}).find(key => 
     key.toLowerCase().includes('client')
   );
-  
-  // Add summary rows based on filtering
+
+  // Filter rows where Unique Sent Count > 1 and exclude summary rows
+  dataToExport = dataToExport.filter(row => {
+    const uniqueSentCount = Number(row['unique_sent_count']) || 0;
+    const isNotSummary = !String(row[clientField || '']).includes(' - Summary');
+    return uniqueSentCount > 1 && isNotSummary;
+  });
+
+  // Sort alphabetically by client name
   if (clientField) {
-    if (selectedClient) {
-      // If a specific client is selected, add one summary row for that client
-      const clientSummary = createClientSummary(data, clientField, selectedClient);
-      dataToExport.push(clientSummary);
-    } else if (allData.length > 0) {
-      // If "All Clients" is selected, create summaries for each client
-      const clients = new Set<string>();
-      
-      // Get unique client names
-      allData.forEach(row => {
-        const clientName = String(row[clientField] || '');
-        if (clientName && !clientName.includes(' - Summary')) {
-          clients.add(clientName);
-        }
-      });
-      
-      // Create a summary row for each client
-      clients.forEach(clientName => {
-        const clientData = allData.filter(row => row[clientField] === clientName);
-        if (clientData.length > 0) {
-          const clientSummary = createClientSummary(clientData, clientField, clientName);
-          dataToExport.push(clientSummary);
-        }
-      });
-    }
+    dataToExport.sort((a, b) => {
+      const clientA = String(a[clientField] || '').toLowerCase();
+      const clientB = String(b[clientField] || '').toLowerCase();
+      return clientA.localeCompare(clientB);
+    });
   }
-  
+
+  // Check if AM data is present by looking for AM column
+  const hasAmData = dataToExport.some(row => 'AM' in row);
+
+  // If no AM data, remove AM-related columns
+  if (!hasAmData) {
+    dataToExport = dataToExport.map(row => {
+      const newRow = { ...row };
+      ['AM', 'Target', 'Target %', 'Weekend sendout'].forEach(key => {
+        delete newRow[key];
+      });
+      return newRow;
+    });
+  }
+
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.json_to_sheet(dataToExport);
   
   XLSX.utils.book_append_sheet(wb, ws, "Summary");
   XLSX.writeFile(wb, "workbook_summary.csv");
 };
+
