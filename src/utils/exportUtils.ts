@@ -1,6 +1,7 @@
 
 import * as XLSX from 'xlsx';
 import { DataRow } from './fileTypes';
+import { generateSummaryView } from './summaryGenerator';
 
 // Helper function to create client summaries
 const createClientSummary = (data: DataRow[], clientField: string | null, clientName: string): DataRow => {
@@ -70,13 +71,13 @@ const createClientSummary = (data: DataRow[], clientField: string | null, client
 export const downloadCsv = (data: DataRow[], selectedClient: string | null = null, allData: DataRow[] = []): void => {
   if (data.length === 0) return;
   
-  let dataToExport = [...data];
-  
   // Find the client field
   const clientField = Object.keys(data[0] || {}).find(key => 
     key.toLowerCase().includes('client')
   );
 
+  let dataToExport = [...data];
+  
   // Filter rows where Unique Sent Count > 1 and exclude summary rows
   dataToExport = dataToExport.filter(row => {
     const uniqueSentCount = Number(row['unique_sent_count']) || 0;
@@ -99,15 +100,121 @@ export const downloadCsv = (data: DataRow[], selectedClient: string | null = nul
   // We check ALL data since AM column might exist in the executive summary but not in filtered data
   const hasAmData = dataToExport.some(row => 'AM' in row) || allData.some(row => 'AM' in row);
 
+  // Generate executive summary if AM data is available
+  let executiveRows: DataRow[] = [];
+  if (hasAmData && !selectedClient) {
+    // Generate executive summary data similar to how it's done in ExecutiveSummary component
+    const allClientField = Object.keys(allData[0] || {}).find(key => key.toLowerCase().includes('client'));
+    
+    if (allClientField) {
+      // Group by client
+      const clientGroups: { [key: string]: DataRow } = {};
+      
+      // Only process rows that aren't summaries and have uniqueSent > 1
+      const validRows = allData.filter(row => {
+        const client = String(row[allClientField] || '');
+        const uniqueSentCount = Number(row['unique_sent_count']) || 0;
+        return uniqueSentCount > 1 && !client.includes('- Summary');
+      });
+      
+      validRows.forEach(row => {
+        const client = String(row[allClientField] || 'Unknown');
+        
+        if (!clientGroups[client]) {
+          clientGroups[client] = { 
+            [allClientField]: client
+          };
+          
+          // Initialize numeric fields
+          ['sent_count', 'unique_sent_count', 'positive_reply_count', 'reply_count', 'bounce_count'].forEach(col => {
+            clientGroups[client][col] = 0;
+          });
+          
+          // Copy AM data if present (for any row with this client)
+          const amRow = allData.find(r => r[allClientField] === client && 'AM' in r);
+          if (amRow) {
+            ['AM', 'Target', 'Weekend sendout'].forEach(key => {
+              if (key in amRow) clientGroups[client][key] = amRow[key];
+            });
+          }
+        }
+        
+        // Sum numeric columns
+        ['sent_count', 'unique_sent_count', 'positive_reply_count', 'reply_count', 'bounce_count'].forEach(col => {
+          if (col in row) {
+            const val = typeof row[col] === 'number' ? row[col] : Number(row[col]) || 0;
+            clientGroups[client][col] = (clientGroups[client][col] as number) + (val as number);
+          }
+        });
+      });
+      
+      // Calculate derived metrics and set Target %
+      Object.values(clientGroups).forEach(group => {
+        const uniqueSent = Number(group['unique_sent_count'] || 0);
+        const positive = Number(group['positive_reply_count'] || 0);
+        const reply = Number(group['reply_count'] || 0);
+        const bounce = Number(group['bounce_count'] || 0);
+        const target = Number(group['Target'] || 0);
+        
+        // Calculate Target %
+        if (target > 0) {
+          group['Target %'] = `${((uniqueSent / target) * 100).toFixed(2)}%`;
+        }
+        
+        // PRR vs RR
+        if (reply > 0) {
+          group['prr_vs_rr'] = (positive / reply) * 100;
+        } else {
+          group['prr_vs_rr'] = 0;
+        }
+        
+        // RR
+        if (uniqueSent > 0) {
+          group['rr'] = (reply / uniqueSent) * 100;
+        } else {
+          group['rr'] = 0;
+        }
+        
+        // Bounce Rate
+        if (uniqueSent > 0) {
+          group['bounce_rate'] = (bounce / uniqueSent) * 100;
+        } else {
+          group['bounce_rate'] = 0;
+        }
+        
+        // Unique sent per positive
+        if (positive > 0) {
+          group['unique_sent_per_positives'] = uniqueSent / positive;
+        } else {
+          group['unique_sent_per_positives'] = 'no positive';
+        }
+      });
+      
+      executiveRows = Object.values(clientGroups);
+      
+      // Sort the executive summary rows
+      executiveRows.sort((a, b) => {
+        const clientA = String(a[allClientField] || '').toLowerCase();
+        const clientB = String(b[allClientField] || '').toLowerCase();
+        return clientA.localeCompare(clientB);
+      });
+    }
+  }
+  
+  // Combine executive summary rows with filtered data if available
+  const finalData = executiveRows.length > 0 ? [...executiveRows, ...dataToExport] : dataToExport;
+
   // Don't remove AM columns if they exist in the data
   if (!hasAmData) {
-    dataToExport = dataToExport.map(row => {
+    dataToExport = finalData.map(row => {
       const newRow = { ...row };
       ['AM', 'Target', 'Target %', 'Weekend sendout'].forEach(key => {
         delete newRow[key];
       });
       return newRow;
     });
+  } else {
+    dataToExport = finalData;
   }
 
   const wb = XLSX.utils.book_new();
