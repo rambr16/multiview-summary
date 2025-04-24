@@ -2,7 +2,8 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { FileDown } from "lucide-react";
-import { DataRow, downloadCsv } from "@/utils/fileProcessor";
+import { downloadCsv } from "@/utils/exportUtils";
+import { DataRow } from "@/utils/fileTypes";
 
 interface DownloadButtonProps {
   data: DataRow[];

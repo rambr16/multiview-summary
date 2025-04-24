@@ -80,7 +80,9 @@ export const downloadCsv = (data: DataRow[], selectedClient: string | null = nul
   // Filter rows where Unique Sent Count > 1 and exclude summary rows
   dataToExport = dataToExport.filter(row => {
     const uniqueSentCount = Number(row['unique_sent_count']) || 0;
-    const isNotSummary = !String(row[clientField || '']).includes(' - Summary');
+    const isNotSummary = clientField ? 
+      !String(row[clientField] || '').includes(' - Summary') : 
+      true;
     return uniqueSentCount > 1 && isNotSummary;
   });
 
@@ -93,10 +95,11 @@ export const downloadCsv = (data: DataRow[], selectedClient: string | null = nul
     });
   }
 
-  // Check if AM data is present by looking for AM column
-  const hasAmData = dataToExport.some(row => 'AM' in row);
+  // Check if AM data is present by looking for AM column across all data rows
+  // We check ALL data since AM column might exist in the executive summary but not in filtered data
+  const hasAmData = dataToExport.some(row => 'AM' in row) || allData.some(row => 'AM' in row);
 
-  // If no AM data, remove AM-related columns
+  // Don't remove AM columns if they exist in the data
   if (!hasAmData) {
     dataToExport = dataToExport.map(row => {
       const newRow = { ...row };
@@ -113,4 +116,3 @@ export const downloadCsv = (data: DataRow[], selectedClient: string | null = nul
   XLSX.utils.book_append_sheet(wb, ws, "Summary");
   XLSX.writeFile(wb, "workbook_summary.csv");
 };
-

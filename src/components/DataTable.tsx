@@ -35,7 +35,7 @@ const DataTable: React.FC<DataTableProps> = ({
     'block_count'
   ];
   
-  // Check if AM data is present
+  // Check if AM data is present in ANY row
   const hasAmData = data.some(row => 'AM' in row);
   
   // Add AM-related columns to hide if AM data is not present
