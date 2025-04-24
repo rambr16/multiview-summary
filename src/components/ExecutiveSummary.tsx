@@ -223,7 +223,7 @@ const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({ summaryData, amData
                 // Target % coloring with new conditions
                 if (h.key === "Target %") {
                   return (
-                    <td key={h.key} className={`${getCellClass(true)} ${getTargetPercentColor(row.targetPercentValue, row.weekendValue, nyDate)}`}>
+                    <td key={h.key} className={`${getCellClass(true)} ${getTargetPercentColor(row.targetPercentValue, String(row.weekendValue), nyDate)}`}>
                       {row[h.key]}
                     </td>
                   );
