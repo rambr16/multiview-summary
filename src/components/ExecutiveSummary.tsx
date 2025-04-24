@@ -1,9 +1,51 @@
-
 import React, { useMemo } from "react";
 import { DataRow } from "@/utils/fileProcessor";
+import { format, getDay } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 
 // Coloring helpers for Target %
-function getTargetPercentColor(targetPercent: number) {
+function getTargetPercentColor(targetPercent: number, weekendValue: string, currentDate: Date) {
+  if (isNaN(targetPercent)) return "";
+  
+  // Get day of week (0 = Sunday, 1 = Monday, etc.)
+  const dayOfWeek = getDay(currentDate);
+  
+  // Monday conditions
+  if (dayOfWeek === 1) {
+    if (weekendValue === 'Y' && targetPercent > 0 && targetPercent < 30) {
+      return "bg-red-100 text-red-700 font-bold";
+    }
+    if (weekendValue === 'N' && targetPercent > 0 && targetPercent < 15) {
+      return "bg-red-100 text-red-700 font-bold";
+    }
+  }
+  // Tuesday condition
+  else if (dayOfWeek === 2 && targetPercent < 50) {
+    return "bg-red-100 text-red-700 font-bold";
+  }
+  // Friday condition
+  else if (dayOfWeek === 5 && targetPercent < 95) {
+    return "bg-red-100 text-red-700 font-bold";
+  }
+  // Default conditions (from previous implementation)
+  else {
+    if (targetPercent < 80) return "bg-red-100 text-red-700 font-bold";
+    if (targetPercent > 130) return "bg-red-100 text-red-700 font-bold";
+    return "bg-green-100 text-green-700 font-semibold";
+  }
+}
+
+function getUniquePerPositiveColor(value: string | number): string {
+  if (value === "no positive") return "bg-red-100 text-red-600";
+  const numValue = typeof value === "number" ? value : parseFloat(String(value));
+  if (isNaN(numValue)) return "";
+  if (numValue > 1000) return "bg-red-100 text-red-700 font-bold";
+  if (numValue < 500) return "bg-green-100 text-green-700 font-semibold";
+  return "";
+}
+
+// Coloring helpers for Target %
+function getTargetPercentColorOld(targetPercent: number) {
   // < 80%: red | >130%: red | 80-130%: green
   if (isNaN(targetPercent)) return "";
   if (targetPercent < 80) return "bg-red-100 text-red-700 font-bold";
@@ -15,7 +57,6 @@ function getCellClass(border: boolean = false) {
   return `px-2 py-1 text-center align-middle ${border ? "border" : ""}`;
 }
 
-// ExecutiveSummary: One row per client, only when All clients selected
 interface ExecutiveSummaryProps {
   summaryData: DataRow[];
   amData: DataRow[];
@@ -38,12 +79,11 @@ const metricColumns = [
 ];
 
 const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({ summaryData, amData }) => {
-  // Combine all client summary rows (each unique client_name)
-  // Assume summaryData already filtered to skip "- Summary" rows per client/client_name.
-  // Map: client_name => summary row data (sums)
-  // Also lookup AM info by client_name
+  // Get current date in NY timezone
+  const nyDate = useMemo(() => {
+    return new Date(formatInTimeZone(new Date(), "America/New_York", "yyyy-MM-dd'T'HH:mm:ssXXX"));
+  }, []);
 
-  // The below only runs when "All clients" summary is being shown.
   const clientField = useMemo(() => {
     if (summaryData.length === 0) return null;
     return Object.keys(summaryData[0]).find(key => key.toLowerCase().includes("client"));
@@ -126,6 +166,7 @@ const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({ summaryData, amData
         Target: target || "",
         "Target %": targetPercentStr,
         targetPercentValue: targetPercent,
+        weekendValue: weekendSendout, // Add weekend value for coloring logic
         AM: amName,
         "Weekend sendout": weekendSendout,
         positive_reply_count: positive,
@@ -141,7 +182,6 @@ const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({ summaryData, amData
 
   if (!clientField || executiveRows.length === 0) return null;
 
-  // Table headers (show only those from design)
   const headers = [
     { key: "client_name", label: "Client" },
     { key: "sent_count", label: "Sent" },
@@ -162,11 +202,16 @@ const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({ summaryData, amData
   return (
     <div className="overflow-x-auto border rounded-md p-4 bg-cyan-50 mb-2">
       <h2 className="text-xl font-bold mb-2 text-sky-900">Executive Summary</h2>
+      <div className="text-sm text-gray-500 mb-2">
+        Report Date (NY): {format(nyDate, 'EEEE, MMMM d, yyyy')}
+      </div>
       <table className="min-w-[900px] w-full border-collapse">
         <thead>
           <tr>
             {headers.map(h => (
-              <th key={h.key} className="px-2 py-1 border-b text-xs font-medium text-cyan-900 whitespace-nowrap bg-cyan-100">{h.label}</th>
+              <th key={h.key} className="px-2 py-1 border-b text-xs font-medium text-cyan-900 whitespace-nowrap bg-cyan-100">
+                {h.label}
+              </th>
             ))}
           </tr>
         </thead>
@@ -174,26 +219,19 @@ const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({ summaryData, amData
           {executiveRows.map((row, idx) => (
             <tr key={row.client_name} className={idx % 2 === 0 ? "bg-cyan-200/60" : ""}>
               {headers.map(h => {
-                // Special case for Target %
+                // Target % coloring with new conditions
                 if (h.key === "Target %") {
-                  const n = Number(row.targetPercentValue);
                   return (
-                    <td key={h.key} className={`${getCellClass(true)} ${getTargetPercentColor(n)}`}>
+                    <td key={h.key} className={`${getCellClass(true)} ${getTargetPercentColor(row.targetPercentValue, row.weekendValue, nyDate)}`}>
                       {row[h.key]}
                     </td>
                   );
                 }
-                // "no positive" color for unique_sent/positives, PRR etc
-                if (h.key === "unique_sent_per_positives" && row[h.key] === "no positive") {
+                // Unique sent/positives coloring
+                if (h.key === "unique_sent_per_positives") {
                   return (
-                    <td key={h.key} className={`${getCellClass(true)} bg-red-100 text-red-600`}>{row[h.key]}</td>
-                  );
-                }
-                // Format percentage values
-                if (["prr_vs_rr", "rr", "bounce_rate"].includes(h.key)) {
-                  return (
-                    <td key={h.key} className={getCellClass(true)}>
-                      {typeof row[h.key] === "number" ? `${row[h.key].toFixed(2)}%` : row[h.key]}
+                    <td key={h.key} className={`${getCellClass(true)} ${getUniquePerPositiveColor(row[h.key])}`}>
+                      {row[h.key]}
                     </td>
                   );
                 }
@@ -210,7 +248,9 @@ const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({ summaryData, amData
           ))}
         </tbody>
       </table>
-      <div className="text-xs text-muted-foreground mt-2">Target %: Red if less than 80% or over 130%. Weekend and AM columns are loaded from AM subsheet.</div>
+      <div className="text-xs text-muted-foreground mt-2">
+        Target %: Conditions vary by day of week. Unique sent/positives: Red if > 1000, Green if < 500.
+      </div>
     </div>
   );
 };
