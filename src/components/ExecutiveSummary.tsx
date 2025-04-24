@@ -1,3 +1,4 @@
+
 import React, { useMemo } from "react";
 import { DataRow } from "@/utils/fileProcessor";
 import { format, getDay } from "date-fns";
@@ -249,7 +250,7 @@ const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({ summaryData, amData
         </tbody>
       </table>
       <div className="text-xs text-muted-foreground mt-2">
-        Target %: Conditions vary by day of week. Unique sent/positives: Red if > 1000, Green if < 500.
+        Target %: Conditions vary by day of week. Unique sent/positives: Red if &gt; 1000, Green if &lt; 500.
       </div>
     </div>
   );
