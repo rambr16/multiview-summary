@@ -1,3 +1,4 @@
+
 import React, { useMemo } from "react";
 import { DataRow } from "@/utils/fileProcessor";
 
@@ -70,12 +71,12 @@ const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({ summaryData, amData
           };
         }
         
-        // Aggregate numeric values
+        // Aggregate numeric values - FIX: Convert values to numbers before addition
         ["sent_count", "unique_sent_count", "positive_reply_count", "reply_count", "bounce_count"].forEach(field => {
           if (typeof row[field] === "number") {
-            clientGroups[client][field] = (clientGroups[client][field] || 0) + row[field];
+            clientGroups[client][field] = Number(clientGroups[client][field] || 0) + row[field];
           } else if (row[field] && !isNaN(Number(row[field]))) {
-            clientGroups[client][field] = (clientGroups[client][field] || 0) + Number(row[field]);
+            clientGroups[client][field] = Number(clientGroups[client][field] || 0) + Number(row[field]);
           }
         });
       }
