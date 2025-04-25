@@ -1,4 +1,3 @@
-
 import React, { useMemo } from "react";
 import { DataRow } from "@/utils/fileProcessor";
 import { format, getDay } from "date-fns";
@@ -112,7 +111,7 @@ const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({ summaryData, amData
           };
         }
         
-        // Aggregate numeric values - FIX: Convert values to numbers before addition
+        // Aggregate numeric values
         ["sent_count", "unique_sent_count", "positive_reply_count", "reply_count", "bounce_count"].forEach(field => {
           if (typeof row[field] === "number") {
             clientGroups[client][field] = Number(clientGroups[client][field] || 0) + row[field];
@@ -123,62 +122,68 @@ const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({ summaryData, amData
       }
     });
 
-    // Process each client's data and add calculated fields
-    return Object.keys(clientGroups).map(clientName => {
-      const summary = clientGroups[clientName];
+    // Process each client's data, filter out clients with sent_count < 1, and add calculated fields
+    return Object.keys(clientGroups)
+      .filter(clientName => {
+        const summary = clientGroups[clientName];
+        return Number(summary["sent_count"] || 0) >= 1;
+      })
+      .map(clientName => {
+        const summary = clientGroups[clientName];
 
-      // Find AM data by client_name (strict match)
-      const am = amData.find(a => String(a["client_name"]).trim() === clientName);
+        // Find AM data by client_name (strict match)
+        const am = amData.find(a => String(a["client_name"]).trim() === clientName);
 
-      // Gather stats for row
-      const sent = Number(summary["sent_count"] || 0);
-      const uniqueSent = Number(summary["unique_sent_count"] || 0);
-      const positive = Number(summary["positive_reply_count"] || 0);
-      const reply = Number(summary["reply_count"] || 0);
-      const bounce = Number(summary["bounce_count"] || 0);
+        // Gather stats for row
+        const sent = Number(summary["sent_count"] || 0);
+        const uniqueSent = Number(summary["unique_sent_count"] || 0);
+        const positive = Number(summary["positive_reply_count"] || 0);
+        const reply = Number(summary["reply_count"] || 0);
+        const bounce = Number(summary["bounce_count"] || 0);
 
-      // AM values (fallback to empty)
-      const target = am && Number(am["Target"]) ? Number(am["Target"]) : 0;
-      const amName = am ? am["Account Manager"] : "";
-      const weekendSendout = am ? am["Weekend sendout"] : "";
+        // AM values (fallback to empty)
+        const target = am && Number(am["Target"]) ? Number(am["Target"]) : 0;
+        const amName = am ? am["Account Manager"] : "";
+        const weekendSendout = am ? am["Weekend sendout"] : "";
 
-      // Calculated values
-      const targetPercent = target > 0 ? (uniqueSent / target) * 100 : 0;
-      const targetPercentStr = target > 0 ? `${targetPercent.toFixed(2)}%` : "";
+        // Calculated values
+        const targetPercent = target > 0 ? (uniqueSent / target) * 100 : 0;
+        const targetPercentStr = target > 0 ? `${targetPercent.toFixed(2)}%` : "";
 
-      // PRR vs RR
-      const prr_vs_rr = reply > 0 ? (positive / reply) * 100 : 0;
+        // PRR vs RR
+        const prr_vs_rr = reply > 0 ? (positive / reply) * 100 : 0;
 
-      // RR - Reply Rate (reply count / unique sent count)
-      const rr = uniqueSent > 0 ? (reply / uniqueSent) * 100 : 0;
+        // RR - Reply Rate
+        const rr = uniqueSent > 0 ? (reply / uniqueSent) * 100 : 0;
 
-      // Bounce Rate
-      const bounce_rate = uniqueSent > 0 ? (bounce / uniqueSent) * 100 : 0;
+        // Bounce Rate
+        const bounce_rate = uniqueSent > 0 ? (bounce / uniqueSent) * 100 : 0;
 
-      // Unique sent per positive
-      const unique_sent_per_positives = positive > 0 
-        ? (uniqueSent / positive).toFixed(2) 
-        : "no positive";
+        // Unique sent per positive
+        const unique_sent_per_positives = positive > 0 
+          ? (uniqueSent / positive).toFixed(2) 
+          : "no positive";
 
-      return {
-        client_name: clientName,
-        sent_count: sent,
-        unique_sent_count: uniqueSent,
-        Target: target || "",
-        "Target %": targetPercentStr,
-        targetPercentValue: targetPercent,
-        weekendValue: weekendSendout, // Add weekend value for coloring logic
-        AM: amName,
-        "Weekend sendout": weekendSendout,
-        positive_reply_count: positive,
-        unique_sent_per_positives,
-        prr_vs_rr,
-        reply_count: reply,
-        rr,
-        bounce_count: bounce,
-        bounce_rate,
-      };
-    });
+        return {
+          client_name: clientName,
+          sent_count: sent,
+          unique_sent_count: uniqueSent,
+          Target: target || "",
+          "Target %": targetPercentStr,
+          targetPercentValue: targetPercent,
+          weekendValue: weekendSendout,
+          AM: amName,
+          "Weekend sendout": weekendSendout,
+          positive_reply_count: positive,
+          unique_sent_per_positives,
+          prr_vs_rr,
+          reply_count: reply,
+          rr,
+          bounce_count: bounce,
+          bounce_rate,
+        };
+      })
+      .sort((a, b) => String(a.client_name).localeCompare(String(b.client_name)));
   }, [summaryData, amData, clientField]);
 
   if (!clientField || executiveRows.length === 0) return null;
