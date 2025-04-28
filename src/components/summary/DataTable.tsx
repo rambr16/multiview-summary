@@ -40,6 +40,12 @@ const DataTable: React.FC<DataTableProps> = ({
              !columnsToHide.some(col => column.toLowerCase() === col.toLowerCase())
   );
 
+  // Filter rows where unique_sent_count >= 1
+  const filteredData = data.filter(row => {
+    const uniqueSentCount = Number(row['unique_sent_count']) || 0;
+    return uniqueSentCount >= 1;
+  });
+
   return (
     <div className="overflow-x-auto">
       <Table>
@@ -53,10 +59,9 @@ const DataTable: React.FC<DataTableProps> = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data.map((row, i) => (
+          {filteredData.map((row, i) => (
             <TableRow key={i}>
               {filteredDisplayColumns.map((column) => {
-                // Get highlight color for conditional formatting
                 const highlightColor = ['prr_vs_rr', 'rr', 'bounce_rate', 'unique_leads_per_positive'].includes(column)
                   ? getMetricHighlightColor(column, row[column])
                   : '';
@@ -72,11 +77,10 @@ const DataTable: React.FC<DataTableProps> = ({
             </TableRow>
           ))}
         </TableBody>
-        {hasNumericColumns && (
+        {hasNumericColumns && filteredData.length > 0 && (
           <TableFooter>
             <TableRow>
               {filteredDisplayColumns.map((column) => {
-                // Get highlight color for conditional formatting in footer row
                 const highlightColor = numericColumns.includes(column) && 
                   ['prr_vs_rr', 'rr', 'bounce_rate', 'unique_leads_per_positive'].includes(column)
                   ? getMetricHighlightColor(column, summaryTotals[column])
